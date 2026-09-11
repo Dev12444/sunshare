@@ -6,17 +6,31 @@ treaty wins and the mock gets fixed.**
 
 ## Engine — Dev, `http://localhost:8000`
 
-| Method | Path | Returns | Hours |
+All **DELIVERED** and covered by 106 tests. Base URL `http://localhost:8000`.
+
+| Method | Path | Returns | Status |
 |---|---|---|---|
-| GET | `/health` | `{ status, simSpeed, seed }` | H0 |
-| WS | `/ws` | `Tick` stream, ~1/s | H1–H4 |
-| GET | `/market/state` | `MarketState` | H4 |
-| POST | `/match` | `MatchResult` ← `MatchRequest` | H9–H11.5 |
-| POST | `/broker/policy` | `BrokerPolicy` ← `{ userId, goal }` | H13–H15 |
-| POST | `/broker/step` | `BrokerDecision` | H13–H15 |
-| GET | `/carbon/{userId}` | `CarbonSummary` | H11.5 |
-| GET | `/grid/topology` | `GridTopology` | H6.5 |
-| POST | `/sim/control` | demo controls: `speed`, `jumpToHour`, `congestEdge` | H19 |
+| GET | `/health` | `{ status, simSpeed, seed, simTime, slotId, brokerLlm }` | ✅ |
+| WS | `/ws` | `Tick` stream, one per second | ✅ |
+| GET | `/market/state` | `MarketState` | ✅ |
+| GET | `/meters` | `MeterReading[]` | ✅ |
+| POST | `/match` | `MatchResult` ← `MatchRequest` | ✅ |
+| POST | `/broker/policy` | `BrokerPolicy` ← `{ userId, goal }` | ✅ |
+| POST | `/broker/step` | `BrokerDecision` ← `{ policy, listing? }` | ✅ |
+| GET | `/carbon/{userId}?local_kwh=` | `CarbonSummary` | ✅ |
+| GET | `/grid/topology` | `GridTopology` | ✅ |
+| POST | `/sim/control` | `{ speed?, jumpToHour?, congestEdge?, clearCongestion? }` | ✅ |
+
+**Rahi — two things that will bite otherwise:**
+
+1. **Fetch `/grid/topology` fresh immediately before every `/match`.** It carries
+   the live per-edge loads, and that is how congestion reaches the matcher. A
+   cached topology silently disables the congestion demo.
+2. **The engine is stateless about trades.** It never persists a listing, bid or
+   trade — your database owns all of that. `/match` is a pure function of the
+   body you send it, and `/carbon` takes the traded total as a query parameter.
+
+Worked example of a full slot is in `services/engine/README.md`.
 
 ## Platform — Rahi, `/api/*`
 
