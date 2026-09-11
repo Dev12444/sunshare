@@ -40,3 +40,6 @@ contracts/typechain-types/
 .vscode/
 .idea/
 *.log
+
+# engine venv
+services/engine/.venv/

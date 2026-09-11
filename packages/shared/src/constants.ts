@@ -105,8 +105,8 @@ export const BADGE_DEFINITIONS: Omit<Badge, 'unlockedAt' | 'progressPct'>[] = [
 
 /* ------------------------------------------------------------- simulator */
 
-/** Simulated minutes per real second. 60 ⇒ a full solar day in 24 minutes. */
-export const DEFAULT_SIM_SPEED = 60;
+/** Simulated minutes per real second. 1 ⇒ a full 24h day in 24 real minutes. */
+export const DEFAULT_SIM_SPEED = 1;
 
 /** Fixed so every demo run is identical. */
 export const DEFAULT_SIM_SEED = 2026;

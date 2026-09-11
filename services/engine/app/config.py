@@ -52,13 +52,23 @@ KG_CO2_PER_TREE_YEAR = 21
 
 # ------------------------------------------------------------- simulator ---
 
-SIM_SPEED = float(os.getenv("SIM_SPEED", "60"))   # sim minutes per real second
+# Simulated minutes per real second. 1 => a full 24h day in 24 real minutes,
+# which is the pace the demo is written around. Raise it for fast-forward.
+SIM_SPEED = float(os.getenv("SIM_SPEED", "1"))
 SIM_SEED = int(os.getenv("SIM_SEED", "2026"))
 SIM_TICK_SECONDS = float(os.getenv("SIM_TICK_SECONDS", "1.0"))
 
 DEMO_LAT = float(os.getenv("DEMO_LAT", "23.2156"))   # Gandhinagar, Gujarat
 DEMO_LNG = float(os.getenv("DEMO_LNG", "72.6369"))
 DEMO_TZ_OFFSET_HOURS = 5.5
+
+# WEATHER_MODE:
+#   auto      use live Open-Meteo only when the real sun is up at the demo
+#             location, otherwise synthetic. Keeps the snapshot internally
+#             consistent when you rehearse at 4am.
+#   live      always use Open-Meteo
+#   synthetic never call the network
+WEATHER_MODE = os.getenv("WEATHER_MODE", "auto")
 
 # --------------------------------------------------------------- weather ---
 

@@ -1,0 +1,112 @@
+{
+  "households": [
+    {
+      "meterId": "M-01",
+      "userId": "U-01",
+      "nodeId": "H-01",
+      "name": "Patel Residence",
+      "panelKw": 7.5,
+      "archetype": "FAMILY_4",
+      "role": "PROSUMER"
+    },
+    {
+      "meterId": "M-02",
+      "userId": "U-02",
+      "nodeId": "H-02",
+      "name": "Sharma Nivas",
+      "panelKw": 5.0,
+      "archetype": "FAMILY_3",
+      "role": "PROSUMER"
+    },
+    {
+      "meterId": "M-03",
+      "userId": "U-03",
+      "nodeId": "H-03",
+      "name": "Desai House",
+      "panelKw": 0.0,
+      "archetype": "FAMILY_5",
+      "role": "CONSUMER"
+    },
+    {
+      "meterId": "M-04",
+      "userId": "U-04",
+      "nodeId": "H-04",
+      "name": "Mehta Bungalow",
+      "panelKw": 10.0,
+      "archetype": "FAMILY_4",
+      "role": "PROSUMER"
+    },
+    {
+      "meterId": "M-05",
+      "userId": "U-05",
+      "nodeId": "H-05",
+      "name": "Joshi Apartment",
+      "panelKw": 3.0,
+      "archetype": "COUPLE",
+      "role": "PROSUMER"
+    },
+    {
+      "meterId": "M-06",
+      "userId": "U-06",
+      "nodeId": "H-06",
+      "name": "Trivedi House",
+      "panelKw": 0.0,
+      "archetype": "FAMILY_4",
+      "role": "CONSUMER"
+    },
+    {
+      "meterId": "M-07",
+      "userId": "U-07",
+      "nodeId": "H-07",
+      "name": "Shah Residence",
+      "panelKw": 6.0,
+      "archetype": "FAMILY_3",
+      "role": "PROSUMER"
+    },
+    {
+      "meterId": "M-08",
+      "userId": "U-08",
+      "nodeId": "H-08",
+      "name": "Raval Farmhouse",
+      "panelKw": 8.5,
+      "archetype": "FAMILY_5",
+      "role": "PROSUMER"
+    },
+    {
+      "meterId": "M-09",
+      "userId": "U-09",
+      "nodeId": "H-09",
+      "name": "Bhatt Flat",
+      "panelKw": 0.0,
+      "archetype": "COUPLE",
+      "role": "CONSUMER"
+    },
+    {
+      "meterId": "M-10",
+      "userId": "U-10",
+      "nodeId": "H-10",
+      "name": "Chauhan House",
+      "panelKw": 4.5,
+      "archetype": "FAMILY_3",
+      "role": "PROSUMER"
+    },
+    {
+      "meterId": "M-11",
+      "userId": "U-11",
+      "nodeId": "H-11",
+      "name": "Solanki Residence",
+      "panelKw": 9.0,
+      "archetype": "FAMILY_4",
+      "role": "PROSUMER"
+    },
+    {
+      "meterId": "M-12",
+      "userId": "U-12",
+      "nodeId": "H-12",
+      "name": "Vyas Nivas",
+      "panelKw": 0.0,
+      "archetype": "FAMILY_5",
+      "role": "CONSUMER"
+    }
+  ]
+}
