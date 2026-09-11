@@ -8,9 +8,10 @@ node_modules/
 out/
 next-env.d.ts
 *.tsbuildinfo
-public/sw.js
-public/sw.js.map
-public/workbox-*.js
+# Unanchored: the generated worker lives at apps/web/public/, not the repo root.
+sw.js
+sw.js.map
+workbox-*.js
 
 # python
 __pycache__/
