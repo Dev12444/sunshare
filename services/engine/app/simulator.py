@@ -39,14 +39,24 @@ from .models import MarketState, MeterReading, Tick, WeatherSnapshot
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 IST = timezone(timedelta(hours=config.DEMO_TZ_OFFSET_HOURS))
 
-# Consumption archetypes: (base kW, morning peak kW, evening peak kW).
-# Evening peaks are larger than morning ones, which is what makes the
+# Consumption archetypes: (base kW, morning peak, evening peak, midday plateau).
+#
+# For households the evening peak is the largest, which is what makes the
 # "generation has stopped but demand is rising" moment in the demo real.
-ARCHETYPES: dict[str, tuple[float, float, float]] = {
-    "COUPLE": (0.25, 0.45, 0.90),
-    "FAMILY_3": (0.35, 0.70, 1.40),
-    "FAMILY_4": (0.45, 0.95, 1.90),
-    "FAMILY_5": (0.55, 1.20, 2.40),
+#
+# SCHOOL and SHOP are the opposite shape: their load lands in the middle of the
+# day, exactly when rooftop solar is producing. That is not decoration — a
+# purely residential neighbourhood has almost no midday demand, so there is
+# nothing meaningful to trade at noon and the whole premise looks weak. Daytime
+# commercial load is what makes local matching worth doing at all, and the
+# school doubles as the community-pool beneficiary for feature #3.
+ARCHETYPES: dict[str, tuple[float, float, float, float]] = {
+    "COUPLE": (0.25, 0.45, 0.90, 0.20),
+    "FAMILY_3": (0.35, 0.70, 1.40, 0.32),
+    "FAMILY_4": (0.45, 0.95, 1.90, 0.43),
+    "FAMILY_5": (0.55, 1.20, 2.40, 0.54),
+    "SCHOOL": (0.60, 2.20, 0.30, 5.50),
+    "SHOP": (0.50, 1.10, 1.80, 3.20),
 }
 
 
@@ -127,8 +137,8 @@ def generation_kw(
 
 
 def consumption_kw(archetype: str, hour_of_day: float, rng: random.Random) -> float:
-    """Household draw in kW: base load plus morning and evening peaks."""
-    base, morning, evening = ARCHETYPES.get(archetype, ARCHETYPES["FAMILY_4"])
+    """Premises draw in kW: base load plus time-of-day peaks."""
+    base, morning, evening, midday = ARCHETYPES.get(archetype, ARCHETYPES["FAMILY_4"])
 
     def bump(centre: float, width: float, height: float) -> float:
         return height * math.exp(-(((hour_of_day - centre) / width) ** 2))
@@ -136,7 +146,9 @@ def consumption_kw(archetype: str, hour_of_day: float, rng: random.Random) -> fl
     load = base
     load += bump(7.5, 1.3, morning)    # breakfast, geyser, getting out
     load += bump(19.5, 2.0, evening)   # cooking, lights, TV, AC
-    load += bump(13.5, 1.8, morning * 0.45)  # midday lull, not zero
+    # Wide, because a school or shop draws steadily across the working day
+    # rather than spiking once.
+    load += bump(12.5, 3.0, midday)
 
     load *= rng.uniform(0.88, 1.12)    # nobody's load curve is smooth
     return max(0.05, round(load, 4))

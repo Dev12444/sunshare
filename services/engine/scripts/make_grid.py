@@ -75,7 +75,7 @@ LAYOUT = [
 HOUSEHOLDS = {
     "H-01": (7.5, "FAMILY_4", "Patel Residence"),
     "H-02": (5.0, "FAMILY_3", "Sharma Nivas"),
-    "H-03": (0.0, "FAMILY_5", "Desai House"),
+    "H-03": (0.0, "SCHOOL", "Sector 21 Primary School"),
     "H-04": (10.0, "FAMILY_4", "Mehta Bungalow"),
     "H-05": (3.0, "COUPLE", "Joshi Apartment"),
     "H-06": (0.0, "FAMILY_4", "Trivedi House"),
@@ -84,7 +84,7 @@ HOUSEHOLDS = {
     "H-09": (0.0, "COUPLE", "Bhatt Flat"),
     "H-10": (4.5, "FAMILY_3", "Chauhan House"),
     "H-11": (9.0, "FAMILY_4", "Solanki Residence"),
-    "H-12": (0.0, "FAMILY_5", "Vyas Nivas"),
+    "H-12": (0.0, "SHOP", "Vyas General Store"),
 }
 
 SUBSTATION_CAPACITY_KW = 500.0
@@ -181,6 +181,8 @@ def build() -> tuple[dict, dict]:
                 "panelKw": panel_kw,
                 "archetype": archetype,
                 "role": "PROSUMER" if panel_kw > 0 else "CONSUMER",
+                "kind": "COMMUNITY" if archetype == "SCHOOL" else (
+                    "COMMERCIAL" if archetype == "SHOP" else "RESIDENTIAL"),
             })
 
     return {"nodes": nodes, "edges": edges}, {"households": households}

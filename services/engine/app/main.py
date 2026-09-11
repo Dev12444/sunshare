@@ -25,6 +25,7 @@ from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import broker as broker_mod
+from . import scenario as scenario_mod
 from . import carbon as carbon_mod
 from . import config, weather
 from .matching import match_slot
@@ -181,6 +182,58 @@ async def carbon(user_id: str, local_kwh: float = 0.0) -> CarbonSummary:
 @app.get("/grid/topology", response_model=GridTopology)
 async def grid_topology() -> GridTopology:
     return sim().grid.topo
+
+
+@app.get("/sim/scenario")
+async def scenario_index() -> dict[str, object]:
+    """The scripted demo beats, in order, with narration and what to watch for."""
+    return {"beats": scenario_mod.beat_list()}
+
+
+@app.post("/sim/scenario")
+async def scenario_jump(body: dict = Body(...)) -> dict[str, object]:
+    """Put the engine into one named demo beat, exactly and reproducibly.
+
+    Three minutes on stage is not enough time to wait for a simulated day, and
+    improvising with sliders in front of judges is how demos die. One call per
+    beat, deterministic under SIM_SEED.
+    """
+    key = str(body.get("beat") or "")
+    beat = scenario_mod.BY_KEY.get(key)
+    if beat is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"unknown beat {key!r}; expected one of "
+            f"{sorted(scenario_mod.BY_KEY)}",
+        )
+
+    s = sim()
+    s.speed = beat.speed
+    s.sim_time = s.sim_time.replace(
+        hour=int(beat.hour), minute=int((beat.hour % 1) * 60), second=0, microsecond=0
+    )
+    weather.reset_cache()
+
+    # Always reset congestion first, so beats are order-independent: jumping
+    # straight to "evening_peak" after "congestion" must not leave a line stuck.
+    for edge_id in list(s._forced_congestion):
+        s.force_congestion(edge_id, False)
+    if beat.congest:
+        s.force_congestion(scenario_mod.DEMO_CONGESTED_EDGE, True)
+
+    snapshot = await weather.fetch_weather(hour_of_day=s.hour_of_day)
+    readings = s.readings(snapshot, 0.0)
+    market = s.market_state(readings)
+
+    return {
+        "beat": beat.key,
+        "title": beat.title,
+        "narration": beat.narration,
+        "watchFor": beat.watch_for,
+        "simTime": s.sim_time.isoformat(),
+        "congestedEdges": sorted(s._forced_congestion),
+        "market": market.model_dump(by_alias=True),
+    }
 
 
 @app.post("/sim/control")

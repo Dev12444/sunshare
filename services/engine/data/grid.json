@@ -53,7 +53,7 @@
     {
       "id": "H-03",
       "kind": "HOUSE",
-      "name": "Desai House",
+      "name": "Sector 21 Primary School",
       "lat": 23.2199,
       "lng": 72.6277,
       "parentId": "F-1",
@@ -173,7 +173,7 @@
     {
       "id": "H-12",
       "kind": "HOUSE",
-      "name": "Vyas Nivas",
+      "name": "Vyas General Store",
       "lat": 23.2341,
       "lng": 72.6544,
       "parentId": "F-4",

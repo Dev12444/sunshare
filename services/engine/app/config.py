@@ -10,8 +10,17 @@ tariff order before any use beyond the hackathon. See docs/PRD.md §13.
 from __future__ import annotations
 
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 from .models import TariffContext
+
+# Load services/engine/.env before anything reads os.getenv. Without this the
+# file is inert: uvicorn does not read .env on its own, so a key sitting in
+# that file silently has no effect and the broker reports provider "none".
+# Real environment variables still win over the file.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
 
 # ---------------------------------------------------------------- market ---
 
