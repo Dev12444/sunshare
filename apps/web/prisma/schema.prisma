@@ -1,0 +1,286 @@
+// SunShare data model — Rahi, H1-H3.5.
+// Mirrors packages/shared/src/types.ts. Money in paise, energy in kWh.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PROSUMER
+  CONSUMER
+  DISCOM
+  REGULATOR
+}
+
+enum GridNodeKind {
+  HOUSE
+  FEEDER
+  SUBSTATION
+}
+
+enum OrderStatus {
+  OPEN
+  MATCHED
+  PARTIAL
+  EXPIRED
+  WITHDRAWN
+}
+
+enum TradeStatus {
+  MATCHED
+  COMMITTED
+  DELIVERING
+  SETTLED
+  FAILED
+}
+
+enum BeneficiaryKind {
+  SCHOOL
+  STREETLIGHT
+  HOUSEHOLD
+  CLINIC
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  role          Role
+  walletAddress String?
+  nodeId        String?
+  node          GridNode? @relation(fields: [nodeId], references: [id])
+  meters        Meter[]
+  listings      Listing[]
+  bids          Bid[]
+  salesTrades   Trade[]  @relation("seller")
+  buysTrades    Trade[]  @relation("buyer")
+  policies      BrokerPolicy[]
+  donations     Donation[]
+  badges        UserBadge[]
+  pushSubs      PushSubscription[]
+  createdAt     DateTime @default(now())
+}
+
+model GridNode {
+  id         String       @id
+  kind       GridNodeKind
+  name       String
+  lat        Float
+  lng        Float
+  parentId   String?
+  parent     GridNode?    @relation("tree", fields: [parentId], references: [id])
+  children   GridNode[]   @relation("tree")
+  capacityKw Float
+  loadKw     Float        @default(0)
+  users      User[]
+  meters     Meter[]
+  edgesFrom  GridEdge[]   @relation("from")
+  edgesTo    GridEdge[]   @relation("to")
+}
+
+model GridEdge {
+  id            String   @id
+  fromNodeId    String
+  toNodeId      String
+  fromNode      GridNode @relation("from", fields: [fromNodeId], references: [id])
+  toNode        GridNode @relation("to", fields: [toNodeId], references: [id])
+  lengthKm      Float
+  capacityKw    Float
+  currentLoadKw Float    @default(0)
+}
+
+model Meter {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  nodeId    String
+  node      GridNode @relation(fields: [nodeId], references: [id])
+  panelKw   Float    @default(0)
+  archetype String   @default("FAMILY_4")
+  readings  Reading[]
+}
+
+model Reading {
+  id             String   @id @default(cuid())
+  meterId        String
+  meter          Meter    @relation(fields: [meterId], references: [id])
+  tsSim          DateTime
+  generationKw   Float
+  consumptionKw  Float
+  surplusKw      Float
+  dayGenerationKwh Float  @default(0)
+
+  @@index([meterId, tsSim])
+}
+
+model MarketSlot {
+  id                  String   @id
+  startSim            DateTime
+  endSim              DateTime
+  totalSupplyKwh      Float    @default(0)
+  totalDemandKwh      Float    @default(0)
+  clearingPricePaise  Int?
+  congestionIndex     Float    @default(0)
+  merkleRoot          String?
+  listings            Listing[]
+  bids                Bid[]
+  trades              Trade[]
+}
+
+model Listing {
+  id             String      @id @default(cuid())
+  sellerId       String
+  seller         User        @relation(fields: [sellerId], references: [id])
+  meterId        String
+  nodeId         String
+  kwh            Float
+  askPricePaise  Int
+  slotId         String
+  slot           MarketSlot  @relation(fields: [slotId], references: [id])
+  expiresAtSim   DateTime
+  status         OrderStatus @default(OPEN)
+  brokerPolicyId String?
+  createdAt      DateTime    @default(now())
+}
+
+model Bid {
+  id            String      @id @default(cuid())
+  buyerId       String
+  buyer         User        @relation(fields: [buyerId], references: [id])
+  meterId       String
+  nodeId        String
+  kwh           Float
+  maxPricePaise Int
+  slotId        String
+  slot          MarketSlot  @relation(fields: [slotId], references: [id])
+  status        OrderStatus @default(OPEN)
+  createdAt     DateTime    @default(now())
+}
+
+model Trade {
+  id               String      @id @default(cuid())
+  slotId           String
+  slot             MarketSlot  @relation(fields: [slotId], references: [id])
+  sellerId         String
+  seller           User        @relation("seller", fields: [sellerId], references: [id])
+  buyerId          String
+  buyer            User        @relation("buyer", fields: [buyerId], references: [id])
+  kwh              Float
+  deliveredKwh     Float
+  pricePaise       Int
+  grossPaise       Int
+  wheelingFeePaise Int
+  netToSellerPaise Int
+  efficiencyPct    Float
+  co2AvoidedKg     Float       @default(0)
+  status           TradeStatus @default(MATCHED)
+  settlement       Settlement?
+  createdAt        DateTime    @default(now())
+}
+
+model Settlement {
+  id               String   @id @default(cuid())
+  tradeId          String   @unique
+  trade            Trade    @relation(fields: [tradeId], references: [id])
+  txHash           String
+  blockNumber      Int
+  chainId          Int
+  gasUsed          String
+  wheelingFeePaise Int
+  merkleRoot       String?
+  explorerUrl      String?
+  mode             String   @default("onchain") // onchain | local | simulated
+  settledAt        DateTime @default(now())
+}
+
+model BrokerPolicy {
+  id                   String   @id @default(cuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id])
+  rawGoal              String
+  objective            String
+  minPricePaise        Int
+  maxPricePaise        Int
+  urgency              Float
+  reserveKwh           Float
+  communityDonationPct Float
+  validUntilSim        DateTime
+  rationale            String
+  source               String   // llm | fallback
+  decisions            BrokerDecision[]
+  createdAt            DateTime @default(now())
+}
+
+model BrokerDecision {
+  id             String       @id @default(cuid())
+  policyId       String
+  policy         BrokerPolicy @relation(fields: [policyId], references: [id])
+  slotId         String
+  tsSim          DateTime
+  action         String
+  kwh            Float
+  fromPricePaise Int?
+  toPricePaise   Int?
+  reason         String
+  inputs         Json
+  createdAt      DateTime     @default(now())
+}
+
+model CarbonLedger {
+  id           String   @id @default(cuid())
+  userId       String
+  tradeId      String?
+  localKwh     Float
+  co2AvoidedKg Float
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
+model UserBadge {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  code       String
+  unlockedAt DateTime @default(now())
+
+  @@unique([userId, code])
+}
+
+model Beneficiary {
+  id            String          @id @default(cuid())
+  name          String
+  kind          BeneficiaryKind
+  nodeId        String
+  walletAddress String
+  verifiedBy    String
+  verifiedAt    DateTime        @default(now())
+  donations     Donation[]
+}
+
+model Donation {
+  id            String      @id @default(cuid())
+  donorId       String
+  donor         User        @relation(fields: [donorId], references: [id])
+  beneficiaryId String
+  beneficiary   Beneficiary @relation(fields: [beneficiaryId], references: [id])
+  kwh           Float
+  slotId        String
+  valuePaise    Int
+  txHash        String?
+  createdAt     DateTime    @default(now())
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}

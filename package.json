@@ -1,0 +1,21 @@
+{
+  "name": "sunshare",
+  "version": "0.1.0",
+  "private": true,
+  "description": "P2P rooftop-solar trading marketplace — HackOut'26, Team Null Pointers",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "contracts"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@sunshare/web",
+    "build": "npm run build --workspace=@sunshare/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "engine": "cd services/engine && uvicorn app.main:app --reload --port 8000",
+    "chain": "npm run node --workspace=@sunshare/contracts"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

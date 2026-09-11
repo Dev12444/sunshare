@@ -1,0 +1,5 @@
+{
+  "_comment": "Demo network — Dev, H6.5. Radial tree: SUBSTATION -> FEEDER -> HOUSE. Coordinates are around Gandhinagar so the Leaflet map looks real. Replace with a richer topology once matching works.",
+  "nodes": [],
+  "edges": []
+}

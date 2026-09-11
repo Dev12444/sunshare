@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}
+
+@layer base {
+  body {
+    @apply bg-white text-grid-900 antialiased dark:bg-grid-900 dark:text-slate-100;
+  }
+}
+
+/* Maansi: shared surface treatment for every tile on the dashboards. */
+@layer components {
+  .tile {
+    @apply rounded-xl border border-black/5 bg-white/80 p-4 shadow-sm
+           backdrop-blur dark:border-white/10 dark:bg-white/5;
+  }
+}

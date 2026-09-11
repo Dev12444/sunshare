@@ -1,0 +1,42 @@
+# deps
+node_modules/
+.pnp/
+.yarn/
+
+# next
+.next/
+out/
+next-env.d.ts
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# hardhat
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+
+# env
+.env
+.env.local
+.env*.local
+!.env.example
+!apps/web/.env.local.example
+
+# db
+*.db
+*.sqlite
+
+# os / editor
+.DS_Store
+.vscode/
+.idea/
+*.log
