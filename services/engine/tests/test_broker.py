@@ -198,3 +198,122 @@ def test_community_objective_donates_before_selling():
     d = execute(p, _reading(), _market(), None, 120, 10.0, T)
     assert d.action == "DONATE"
     assert d.kwh > 0
+
+
+# ------------------------------------------------------------- providers ---
+
+
+def test_provider_selection(monkeypatch):
+    """auto prefers Anthropic, falls through to OpenAI, then to the fallback."""
+    from app import config
+
+    def setenv(anthropic_key="", openai_key="", provider="auto"):
+        monkeypatch.setattr(config, "ANTHROPIC_API_KEY", anthropic_key)
+        monkeypatch.setattr(config, "OPENAI_API_KEY", openai_key)
+        monkeypatch.setattr(config, "LLM_PROVIDER", provider)
+
+    setenv()
+    assert config.active_llm_provider() == "none"
+
+    setenv(anthropic_key="sk-ant-x")
+    assert config.active_llm_provider() == "anthropic"
+
+    setenv(openai_key="sk-oai-x")
+    assert config.active_llm_provider() == "openai"
+
+    setenv(anthropic_key="sk-ant-x", openai_key="sk-oai-x")
+    assert config.active_llm_provider() == "anthropic"
+
+    # Explicit pins, including asking for a provider whose key is absent.
+    setenv(anthropic_key="sk-ant-x", openai_key="sk-oai-x", provider="openai")
+    assert config.active_llm_provider() == "openai"
+    setenv(anthropic_key="sk-ant-x", provider="openai")
+    assert config.active_llm_provider() == "none"
+    setenv(anthropic_key="sk-ant-x", openai_key="sk-oai-x", provider="none")
+    assert config.active_llm_provider() == "none"
+
+
+def test_broken_provider_degrades_to_fallback(monkeypatch):
+    """A configured provider that throws must not surface as an error.
+
+    This is the scenario that actually matters on stage: a key is set, the
+    network is flaky, and the demo has to keep moving.
+    """
+    from app import broker as broker_mod
+    from app import config
+
+    monkeypatch.setattr(config, "OPENAI_API_KEY", "sk-oai-broken")
+    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")
+    monkeypatch.setattr(config, "LLM_PROVIDER", "auto")
+
+    async def boom(goal, tariff):
+        raise RuntimeError("connection reset")
+
+    monkeypatch.setattr(broker_mod, "_policy_via_openai", boom)
+
+    p = asyncio.run(broker_mod.build_policy("U-01", "sell fast before sunset", T))
+    assert p.source == "fallback"
+    assert p.objective == "SELL_FAST"
+    assert FLOOR <= p.min_price_paise <= p.max_price_paise <= CEIL
+
+
+def test_openai_shaped_response_is_validated_identically(monkeypatch):
+    """A hostile response through the OpenAI path is clamped exactly as
+    an Anthropic one would be — the guardrails are vendor-independent."""
+    from app import broker as broker_mod
+    from app import config
+
+    monkeypatch.setattr(config, "OPENAI_API_KEY", "sk-oai-x")
+    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")
+    monkeypatch.setattr(config, "LLM_PROVIDER", "auto")
+
+    async def hostile(goal, tariff):
+        return {
+            "objective": "NOT_A_REAL_OBJECTIVE",
+            "minPricePaise": 10**9,
+            "maxPricePaise": -(10**9),
+            "urgency": 99,
+            "reserveKwh": -5,
+            "communityDonationPct": 400,
+            "rationale": "y" * 50_000,
+        }
+
+    monkeypatch.setattr(broker_mod, "_policy_via_openai", hostile)
+
+    p = asyncio.run(broker_mod.build_policy("U-01", "anything", T))
+    assert p.source == "llm"
+    assert p.objective in ("MAX_PROFIT", "SELL_FAST", "BEAT_GRID", "MAX_COMMUNITY")
+    assert FLOOR <= p.min_price_paise <= p.max_price_paise <= CEIL
+    assert 0.0 <= p.urgency <= 1.0
+    assert p.reserve_kwh >= 0.0
+    assert 0.0 <= p.community_donation_pct <= 100.0
+    assert len(p.rationale) <= 400
+
+
+def test_good_openai_response_is_accepted(monkeypatch):
+    from app import broker as broker_mod
+    from app import config
+
+    monkeypatch.setattr(config, "OPENAI_API_KEY", "sk-oai-x")
+    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")
+    monkeypatch.setattr(config, "LLM_PROVIDER", "auto")
+
+    async def good(goal, tariff):
+        return {
+            "objective": "SELL_FAST",
+            "minPricePaise": 450,
+            "maxPricePaise": 620,
+            "urgency": 0.9,
+            "reserveKwh": 1.5,
+            "communityDonationPct": 0,
+            "rationale": "Clearing before sunset, floor held at 4.50.",
+        }
+
+    monkeypatch.setattr(broker_mod, "_policy_via_openai", good)
+
+    p = asyncio.run(broker_mod.build_policy("U-01", "sell fast, floor 4.50", T))
+    assert p.source == "llm"
+    assert p.objective == "SELL_FAST"
+    assert p.min_price_paise == 450
+    assert p.max_price_paise == 620
+    assert p.reserve_kwh == 1.5

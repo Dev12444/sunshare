@@ -77,7 +77,7 @@ async def health() -> dict[str, object]:
         "simTime": s.sim_time.isoformat(),
         "slotId": s.slot_id(),
         "weatherMode": config.WEATHER_MODE,
-        "brokerLlm": bool(config.ANTHROPIC_API_KEY),
+        "brokerProvider": config.active_llm_provider(),
     }
 
 

@@ -58,10 +58,12 @@ per-segment loss valued at the clearing price. A nearer seller wins because its
 arcs are cheaper; a congested feeder re-allocates because flow cannot pass.
 Cross-checked against `networkx.max_flow_min_cost`.
 
-**Broker.** Claude emits one schema-validated `BrokerPolicy`, which is clamped
-into the corridor before a deterministic executor acts on it. The model never
-signs, settles, or picks a counterparty. Without `ANTHROPIC_API_KEY` it falls
-back to a keyword parser, so the demo works offline.
+**Broker.** A language model emits one schema-validated `BrokerPolicy`, which is
+clamped into the corridor before a deterministic executor acts on it. The model
+never signs, settles, or picks a counterparty. **Anthropic and OpenAI are both
+supported** — set either key, and the same validation is applied to whichever
+answers. With no key at all it falls back to a keyword parser, so the demo works
+offline.
 
 ## Configuration
 
@@ -70,8 +72,14 @@ back to a keyword parser, so the demo works offline.
 | `SIM_SPEED` | `1` | sim minutes per real second; 1 ⇒ 24h day in 24 real min |
 | `SIM_SEED` | `2026` | fixes all noise |
 | `WEATHER_MODE` | `auto` | `auto` uses Open-Meteo only when the real sun is up |
-| `ANTHROPIC_API_KEY` | *(unset)* | unset ⇒ broker uses the rule-based fallback |
-| `BROKER_MODEL` | `claude-sonnet-5` | |
+| `LLM_PROVIDER` | `auto` | `auto` \| `anthropic` \| `openai` \| `none` |
+| `ANTHROPIC_API_KEY` | *(unset)* | preferred when both keys are set |
+| `BROKER_MODEL` | `claude-sonnet-5` | Anthropic model |
+| `OPENAI_API_KEY` | *(unset)* | used when no Anthropic key is present |
+| `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model |
+
+With neither key set, the broker uses its rule-based fallback. That path is
+fully tested and the demo is safe without any API key at all.
 
 > ⚠️ Tariff and emission figures are **illustrative**. Re-derive against the
 > actual state DISCOM tariff order before quoting them anywhere.

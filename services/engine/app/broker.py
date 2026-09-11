@@ -4,8 +4,10 @@ The user writes a goal in plain language:
 
     "sell fast before sunset but never below 4.50"
 
-Claude turns that into ONE validated BrokerPolicy object. A deterministic
-executor then acts on that policy each slot.
+A language model turns that into ONE validated BrokerPolicy object, and a
+deterministic executor then acts on that policy each slot. Anthropic and OpenAI
+are both supported; the guardrails below are applied to whichever answered, so
+they do not depend on the vendor.
 
 GUARDRAILS — these are the design, not decoration:
 
@@ -150,6 +152,73 @@ def _policy_from_fields(
     )
 
 
+async def _policy_via_anthropic(goal: str, tariff: TariffContext) -> dict:
+    """Ask Claude for a policy. Returns the raw tool input dict."""
+    import anthropic
+
+    client = anthropic.AsyncAnthropic(
+        api_key=config.ANTHROPIC_API_KEY,
+        timeout=config.BROKER_TIMEOUT_SECONDS,
+    )
+    response = await client.messages.create(
+        model=config.ANTHROPIC_MODEL,
+        max_tokens=700,
+        system=SYSTEM_PROMPT.format(
+            floor=tariff.feed_in_tariff_paise, ceiling=tariff.retail_tariff_paise
+        ),
+        tools=[POLICY_TOOL],
+        tool_choice={"type": "tool", "name": POLICY_TOOL["name"]},
+        messages=[{"role": "user", "content": goal}],
+    )
+    for block in response.content:
+        if getattr(block, "type", None) == "tool_use":
+            return dict(block.input)
+    raise ValueError("anthropic returned no tool_use block")
+
+
+async def _policy_via_openai(goal: str, tariff: TariffContext) -> dict:
+    """Ask an OpenAI model for a policy. Returns the raw function-call args.
+
+    Same schema, same system prompt, same validation afterwards — only the
+    wire format differs.
+    """
+    import json
+
+    from openai import AsyncOpenAI
+
+    client = AsyncOpenAI(
+        api_key=config.OPENAI_API_KEY,
+        timeout=config.BROKER_TIMEOUT_SECONDS,
+    )
+    response = await client.chat.completions.create(
+        model=config.OPENAI_MODEL,
+        max_tokens=700,
+        tools=[{
+            "type": "function",
+            "function": {
+                "name": POLICY_TOOL["name"],
+                "description": POLICY_TOOL["description"],
+                "parameters": POLICY_TOOL["input_schema"],
+            },
+        }],
+        tool_choice={"type": "function", "function": {"name": POLICY_TOOL["name"]}},
+        messages=[
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT.format(
+                    floor=tariff.feed_in_tariff_paise,
+                    ceiling=tariff.retail_tariff_paise,
+                ),
+            },
+            {"role": "user", "content": goal},
+        ],
+    )
+    calls = response.choices[0].message.tool_calls
+    if not calls:
+        raise ValueError("openai returned no tool_call")
+    return json.loads(calls[0].function.arguments)
+
+
 async def build_policy(
     user_id: str,
     goal: str,
@@ -158,43 +227,32 @@ async def build_policy(
 ) -> BrokerPolicy:
     """Goal -> validated, corridor-clamped policy.
 
+    Works with Anthropic, with OpenAI, or with neither. Whichever answers, the
+    result goes through the same _policy_from_fields validation, so the
+    guardrails are independent of the vendor.
+
     Falls back to the keyword parser on any failure whatsoever, including a
-    missing API key. Failure here must never be visible to the audience.
+    missing key or an uninstalled SDK. Failure here must never reach the
+    audience.
     """
     tariff = tariff or config.DEFAULT_TARIFF
     valid_until = valid_until_sim or (datetime.now() + timedelta(hours=12)).isoformat()
 
-    if not config.ANTHROPIC_API_KEY:
+    provider = config.active_llm_provider()
+    if provider == "none":
         return parse_fallback(user_id, goal, tariff, valid_until)
 
     try:
-        import anthropic
-
-        client = anthropic.AsyncAnthropic(
-            api_key=config.ANTHROPIC_API_KEY,
-            timeout=config.BROKER_TIMEOUT_SECONDS,
-        )
-        response = await client.messages.create(
-            model=config.BROKER_MODEL,
-            max_tokens=700,
-            system=SYSTEM_PROMPT.format(
-                floor=tariff.feed_in_tariff_paise, ceiling=tariff.retail_tariff_paise
-            ),
-            tools=[POLICY_TOOL],
-            tool_choice={"type": "tool", "name": "set_trading_policy"},
-            messages=[{"role": "user", "content": goal}],
-        )
-
-        for block in response.content:
-            if getattr(block, "type", None) == "tool_use":
-                return _policy_from_fields(
-                    user_id, goal, dict(block.input), tariff, "llm", valid_until
-                )
-        raise ValueError("model returned no tool_use block")
+        if provider == "anthropic":
+            fields = await _policy_via_anthropic(goal, tariff)
+        else:
+            fields = await _policy_via_openai(goal, tariff)
+        return _policy_from_fields(user_id, goal, fields, tariff, "llm", valid_until)
 
     except Exception:
-        # Timeout, auth failure, rate limit, schema drift, malformed input —
-        # all handled identically. The feature degrades to rule-based.
+        # Timeout, auth failure, rate limit, schema drift, missing SDK, malformed
+        # arguments — all handled identically. The feature degrades to
+        # rule-based rather than disappearing.
         return parse_fallback(user_id, goal, tariff, valid_until)
 
 

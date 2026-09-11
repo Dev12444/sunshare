@@ -91,9 +91,42 @@ WEATHER_TIMEOUT_SECONDS = 5.0
 
 # ------------------------------------------------------------- AI broker ---
 
+# The broker works with either provider, or neither. Whatever is configured,
+# the model's output goes through the same validation and corridor clamping, so
+# the guardrails do not depend on which vendor answered.
+#
+# LLM_PROVIDER: auto | anthropic | openai | none
+#   auto  -> use Anthropic if its key is set, else OpenAI, else the rule-based
+#            fallback. This is what you want; the explicit values are for
+#            pinning one provider during testing.
+#   none  -> never call out, always use the fallback parser.
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "auto").lower()
+
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-BROKER_MODEL = os.getenv("BROKER_MODEL", "claude-sonnet-5")
+ANTHROPIC_MODEL = os.getenv("BROKER_MODEL", "claude-sonnet-5")
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
 BROKER_TIMEOUT_SECONDS = float(os.getenv("BROKER_TIMEOUT_SECONDS", "12"))
+
+# Kept as an alias so nothing that already imports BROKER_MODEL breaks.
+BROKER_MODEL = ANTHROPIC_MODEL
+
+
+def active_llm_provider() -> str:
+    """Which provider will actually be used, given the current environment."""
+    if LLM_PROVIDER == "none":
+        return "none"
+    if LLM_PROVIDER == "anthropic":
+        return "anthropic" if ANTHROPIC_API_KEY else "none"
+    if LLM_PROVIDER == "openai":
+        return "openai" if OPENAI_API_KEY else "none"
+    if ANTHROPIC_API_KEY:
+        return "anthropic"
+    if OPENAI_API_KEY:
+        return "openai"
+    return "none"
 
 # ------------------------------------------------------------------ misc ---
 
