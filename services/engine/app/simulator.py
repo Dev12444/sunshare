@@ -290,11 +290,21 @@ class Simulator:
         self._last_clearing_price = paise
 
     def force_congestion(self, edge_id: str, on: bool = True) -> None:
-        """Scripted congestion event for demo step 6."""
+        """Scripted congestion event for demo step 6.
+
+        Applied to the live topology immediately, not merely recorded for the
+        next tick — /grid/topology and /match must reflect the change the
+        instant the control is pressed, or it reads as a dead button on stage.
+        """
+        edge = self.grid.edges.get(edge_id)
         if on:
             self._forced_congestion.add(edge_id)
+            if edge:
+                edge.current_load_kw = edge.capacity_kw * 0.97
         else:
             self._forced_congestion.discard(edge_id)
+            if edge:
+                edge.current_load_kw = 0.0
 
     # -- tick --------------------------------------------------------------
 
