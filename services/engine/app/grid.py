@@ -134,12 +134,36 @@ class GridIndex:
             return config.LOSS_SAME_SUBSTATION_PCT
         return config.LOSS_CROSS_SUBSTATION_PCT
 
+    def segment_loss_pct(self, edge: GridEdge) -> float:
+        """Loss percentage for one physical line segment.
+
+        Losses are defined per segment, by voltage level, and the familiar hop
+        tiers are simply what they sum to along a path. Defining it this way
+        round means the interpretable story on the slide and the arc costs
+        inside the flow network are literally the same numbers, so they cannot
+        drift apart.
+        """
+        kind_a = self.nodes[edge.from_node_id].kind
+        kind_b = self.nodes[edge.to_node_id].kind
+        kinds = {kind_a, kind_b}
+
+        if kinds == {"HOUSE", "FEEDER"}:
+            base = config.LOSS_SEGMENT_HOUSE_FEEDER_PCT
+        elif kinds == {"FEEDER", "SUBSTATION"}:
+            base = config.LOSS_SEGMENT_FEEDER_SUBSTATION_PCT
+        elif kinds == {"SUBSTATION"}:
+            base = config.LOSS_SEGMENT_SUBSTATION_LINK_PCT
+        else:
+            base = config.LOSS_SEGMENT_FEEDER_SUBSTATION_PCT
+
+        return base + edge.length_km * config.LOSS_PER_KM_PCT
+
     def loss_fraction(self, a_node: str, b_node: str) -> float:
         """Fraction of energy lost in transit, 0..1.
 
-        Capped at 25% — beyond that the trade is nonsense and should simply not
-        be matched, but an uncapped formula could otherwise produce >100% loss
-        on a pathological topology.
+        Summed over the physical segments of the path. Capped at 25% — beyond
+        that the trade is nonsense and should simply not be matched, but an
+        uncapped formula could produce absurd values on a pathological topology.
         """
         # Nothing is transmitted, so nothing is lost. Self-pairs are excluded by
         # the matcher anyway, but the physics should be right regardless.
@@ -148,8 +172,7 @@ class GridIndex:
         path = self.path_between(a_node, b_node)
         if not path:
             return 1.0
-        pct = self.hop_tier_loss_pct(a_node, b_node)
-        pct += self.path_distance_km(path) * config.LOSS_PER_KM_PCT
+        pct = sum(self.segment_loss_pct(e) for e in self.path_edges(path))
         return min(pct / 100.0, 0.25)
 
     def efficiency_pct(self, a_node: str, b_node: str) -> float:

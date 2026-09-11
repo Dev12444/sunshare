@@ -29,9 +29,22 @@ BASE_PRICE_PAISE = (
 
 # --------------------------------------------------------- network losses ---
 
+# Per-SEGMENT losses, by voltage level. These are the primitives: the familiar
+# hop tiers are what they sum to along a path, which keeps the interpretable
+# story and the flow network using exactly the same numbers.
+#
+#   same feeder       0.25 + 0.25                      = 0.50%
+#   same substation   0.25 + 0.75 + 0.75 + 0.25        = 2.00%
+#   cross substation  0.25 + 0.75 + 3.0 + 0.75 + 0.25  = 5.00%
+LOSS_SEGMENT_HOUSE_FEEDER_PCT = 0.25       # low-voltage service drop
+LOSS_SEGMENT_FEEDER_SUBSTATION_PCT = 0.75  # 11 kV distribution feeder
+LOSS_SEGMENT_SUBSTATION_LINK_PCT = 3.0     # high-tension inter-substation link
+
+# Kept for reference and for the tests that pin the tier arithmetic.
 LOSS_SAME_FEEDER_PCT = 0.5
 LOSS_SAME_SUBSTATION_PCT = 2.0
 LOSS_CROSS_SUBSTATION_PCT = 5.0
+
 LOSS_PER_KM_PCT = 0.06
 
 CONGESTION_HIGH_THRESHOLD = 0.75
