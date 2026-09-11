@@ -7,7 +7,7 @@ AI broker, carbon maths.
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
-pytest                      # 106 tests
+pytest                      # 166 tests, hermetic (no network)
 ```
 
 - Live ticks: `ws://localhost:8000/ws`
@@ -58,7 +58,9 @@ per-segment loss valued at the clearing price. A nearer seller wins because its
 arcs are cheaper; a congested feeder re-allocates because flow cannot pass.
 Cross-checked against `networkx.max_flow_min_cost`.
 
-**Broker.** A language model emits one schema-validated `BrokerPolicy`, which is
+**Broker.** The agent reads a genuine two-hour cloud forecast (Open-Meteo
+hourly, synthetic fallback) rather than the current reading, so "cloud is
+rolling in, sell now" is a real inference. A language model emits one schema-validated `BrokerPolicy`, which is
 clamped into the corridor before a deterministic executor acts on it. The model
 never signs, settles, or picks a counterparty. **Anthropic and OpenAI are both
 supported** — set either key, and the same validation is applied to whichever

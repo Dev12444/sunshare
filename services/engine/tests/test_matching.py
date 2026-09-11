@@ -38,7 +38,7 @@ def _bid(i: int, node: str, kwh: float, price: int) -> Bid:
 # ----------------------------------------------------- solver correctness ---
 
 
-@pytest.mark.parametrize("trial", range(30))
+@pytest.mark.parametrize("trial", range(50))
 def test_mcmf_agrees_with_networkx(trial: int) -> None:
     """Random layered networks; our min cost must equal networkx's exactly."""
     rng = random.Random(1000 + trial)

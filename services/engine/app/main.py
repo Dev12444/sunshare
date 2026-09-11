@@ -34,6 +34,7 @@ from .models import (
     BrokerPolicy,
     CarbonSummary,
     GridTopology,
+    Listing,
     MarketState,
     MatchRequest,
     MatchResult,
@@ -151,14 +152,25 @@ async def broker_step(body: dict = Body(...)) -> BrokerDecision:
     if reading is None:
         raise HTTPException(status_code=404, detail=f"no meter for user {policy.user_id}")
 
-    listing = body.get("listing")
+    # The listing arrives as raw JSON and MUST be parsed into the model here.
+    # execute() reads listing.ask_price_paise; a bare dict blows up at the
+    # attribute access, which is how REPRICE / WITHDRAW were 500ing while the
+    # unit tests (which pass a real Listing) stayed green.
+    raw_listing = body.get("listing")
+    listing: Listing | None = None
+    if raw_listing is not None:
+        try:
+            listing = Listing.model_validate(raw_listing)
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=f"invalid listing: {exc}") from exc
+
     return broker_mod.execute(
         policy=policy,
         reading=reading,
         market=s.market_state(readings),
         listing=listing,
         minutes_to_sunset=s.minutes_to_sunset(),
-        forecast_cloud_pct=snapshot.cloud_cover_pct,
+        forecast_cloud_pct=await weather.forecast_cloud_pct(s.hour_of_day, 2.0),
         tariff=config.DEFAULT_TARIFF,
     )
 

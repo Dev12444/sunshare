@@ -19,6 +19,7 @@ from . import config
 from .models import WeatherSnapshot
 
 _cache: dict[str, object] = {"snapshot": None, "fetched_at": 0.0}
+_forecast_cache: dict[str, object] = {"hourly": None, "fetched_at": 0.0}
 
 
 async def fetch_weather(
@@ -112,7 +113,63 @@ def synthetic_weather(hour_of_day: float) -> WeatherSnapshot:
     )
 
 
+async def forecast_cloud_pct(
+    hour_of_day: float,
+    hours_ahead: float = 2.0,
+    lat: float | None = None,
+    lng: float | None = None,
+) -> float:
+    """Cloud cover expected `hours_ahead` from the simulated hour, as a percentage.
+
+    This is a genuine look-ahead, not the current reading relabelled. The AI
+    broker uses it to decide whether to hold out for a better price or concede
+    now: "cloud is rolling in over the next two hours" is a real reason to sell,
+    and the decision feed says so.
+
+    Live mode pulls Open-Meteo's hourly cloud_cover series; otherwise, and on any
+    failure, it evaluates the synthetic curve at the future hour. Either way the
+    answer is about a time that has not happened yet.
+    """
+    lat = config.DEMO_LAT if lat is None else lat
+    lng = config.DEMO_LNG if lng is None else lng
+    target = (hour_of_day + hours_ahead) % 24.0
+
+    if config.WEATHER_MODE == "synthetic" or (
+        config.WEATHER_MODE == "auto" and not _real_sun_is_up(lat, lng)
+    ):
+        return synthetic_weather(target).cloud_cover_pct
+
+    now = time.monotonic()
+    hourly = _forecast_cache.get("hourly")
+    if hourly is None or now - float(_forecast_cache["fetched_at"]) >= config.WEATHER_REFRESH_SECONDS:
+        try:
+            async with httpx.AsyncClient(timeout=config.WEATHER_TIMEOUT_SECONDS) as client:
+                res = await client.get(
+                    config.OPEN_METEO_URL,
+                    params={
+                        "latitude": lat,
+                        "longitude": lng,
+                        "hourly": "cloud_cover",
+                        "forecast_days": 2,
+                        "timezone": "Asia/Kolkata",
+                    },
+                )
+                res.raise_for_status()
+                hourly = res.json()["hourly"]["cloud_cover"]
+                _forecast_cache["hourly"] = hourly
+                _forecast_cache["fetched_at"] = now
+        except Exception:
+            return synthetic_weather(target).cloud_cover_pct
+
+    try:
+        return float(hourly[int(target) % len(hourly)])
+    except Exception:
+        return synthetic_weather(target).cloud_cover_pct
+
+
 def reset_cache() -> None:
     """Used by tests, and by /sim/control when jumping the clock."""
     _cache["snapshot"] = None
     _cache["fetched_at"] = 0.0
+    _forecast_cache["hourly"] = None
+    _forecast_cache["fetched_at"] = 0.0
