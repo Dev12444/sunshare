@@ -115,8 +115,34 @@ contract CommunityPool {
         uint64 slot
     ) external returns (uint256 donatedWh) {
         if (!beneficiaries[beneficiary].verified) revert NotVerified(beneficiary);
-        // TODO(Rahi): implement the threshold + bps maths.
-        revert("TODO(Rahi): implement routeDonation");
+
+        DonorConfig memory config = donors[donor];
+        if (!config.active) return 0;
+        if (dayGenerationWh <= config.dailyThresholdWh) return 0;
+
+        uint256 aboveThresholdWh = dayGenerationWh - config.dailyThresholdWh;
+        uint256 targetWh = (aboveThresholdWh * config.donationBps) / 10_000;
+
+        // dayGenerationWh is cumulative, so the target is a running total for
+        // the day. Settling slot by slot must top up towards it, not re-donate
+        // the same share of the same surplus every slot.
+        uint256 alreadyWh = donatedTodayWh[donor];
+        if (targetWh <= alreadyWh) return 0;
+
+        donatedWh = targetWh - alreadyWh;
+        if (donatedWh > availableWh) donatedWh = availableWh;
+        if (donatedWh == 0) return 0;
+
+        beneficiaries[beneficiary].receivedWh += donatedWh;
+        donatedTodayWh[donor] += donatedWh;
+        totalDonatedWh += donatedWh;
+
+        emit Donated(donor, beneficiary, donatedWh, slot);
+    }
+
+    /// @notice Resets the daily counter so a new solar day starts from zero.
+    function startNewDay(address donor) external onlyDiscom {
+        donatedTodayWh[donor] = 0;
     }
 
     function beneficiaryCount() external view returns (uint256) {
