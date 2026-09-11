@@ -98,12 +98,9 @@ contract CommunityPool {
 
     /**
      * @notice Route a donation during settlement.
-     * @dev TODO(Rahi, H10.5-H13). Must:
-     *      - revert unless the beneficiary is verified
-     *      - do nothing if the donor's day generation is below the threshold
-     *      - compute donationBps of the surplus above the threshold
-     *      - update receivedWh / donatedTodayWh / totalDonatedWh
-     *      - emit Donated
+     * @dev Reverts unless the beneficiary is verified, and returns zero below
+     *      the donor's daily threshold. The bps share is a running daily
+     *      target, topped up slot by slot and capped by availableWh.
      *
      * Called by EnergyEscrow during settle(), not directly by users.
      */

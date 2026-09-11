@@ -101,12 +101,8 @@ contract EnergyEscrow {
 
     /**
      * @notice Settle one matched trade on delivered energy.
-     * @dev TODO(Rahi, H10.5-H13). Must:
-     *      - revert if price is outside [feedInTariffPaise, retailTariffPaise]
-     *      - revert if deliveredWh > contractedWh
-     *      - revert if the trade id was already settled
-     *      - record the wheeling fee owed to the DISCOM
-     *      - emit TradeSettled
+     * @dev Reverts outside the corridor, on delivered > contracted, or on a
+     *      repeated trade id. The wheeling fee is charged on delivered energy.
      */
     function settle(
         bytes32 id,
