@@ -1,0 +1,412 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_relayer",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_feedInTariffPaise",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_retailTariffPaise",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_wheelingChargePaise",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "id",
+          "type": "bytes32"
+        }
+      ],
+      "name": "AlreadySettled",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "delivered",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "contracted",
+          "type": "uint256"
+        }
+      ],
+      "name": "DeliveredExceedsContracted",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "NotAuthorised",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "price",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "floorPaise",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "ceilPaise",
+          "type": "uint256"
+        }
+      ],
+      "name": "PriceOutsideCorridor",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint64",
+          "name": "slot",
+          "type": "uint64"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "merkleRoot",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "orderCount",
+          "type": "uint256"
+        }
+      ],
+      "name": "SlotCommitted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "id",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "seller",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "buyer",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "deliveredWh",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "pricePaisePerKwh",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "wheelingFeePaise",
+          "type": "uint256"
+        }
+      ],
+      "name": "TradeSettled",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint64",
+          "name": "slot",
+          "type": "uint64"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "merkleRoot",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "orderCount",
+          "type": "uint256"
+        }
+      ],
+      "name": "commitSlot",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "discom",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "feedInTariffPaise",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "relayer",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "retailTariffPaise",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_feedInTariffPaise",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_retailTariffPaise",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_wheelingChargePaise",
+          "type": "uint256"
+        }
+      ],
+      "name": "setTariffs",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "id",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "seller",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "buyer",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "contractedWh",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "deliveredWh",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "pricePaisePerKwh",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint64",
+          "name": "slot",
+          "type": "uint64"
+        }
+      ],
+      "name": "settle",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "id",
+          "type": "bytes32"
+        }
+      ],
+      "name": "settlementBreakdown",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "grossPaise",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "wheelingFeePaise",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "netToSellerPaise",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint64",
+          "name": "",
+          "type": "uint64"
+        }
+      ],
+      "name": "slotRoots",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "trades",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "id",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "address",
+          "name": "seller",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "buyer",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "contractedWh",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "deliveredWh",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "pricePaisePerKwh",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "wheelingFeePaise",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint64",
+          "name": "slot",
+          "type": "uint64"
+        },
+        {
+          "internalType": "bool",
+          "name": "settled",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "wheelingChargePaise",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ]
+}

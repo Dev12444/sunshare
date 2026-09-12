@@ -1,11 +1,43 @@
 /**
- * POST /api/settle — relayer settles a matched trade on chain — Rahi, H10.5–H13.
+ * POST /api/settle — relay one matched trade to the escrow contract — Rahi, H10.5–H13.
  */
 import { NextResponse } from 'next/server';
+import { settleTrade } from '@/lib/settlement';
+
+export const dynamic = 'force-dynamic';
+
+const STATUS = {
+  UNKNOWN_TRADE: 404,
+  ALREADY_SETTLED: 409,
+  NO_WALLET: 409,
+} as const;
+
+const MESSAGE = {
+  UNKNOWN_TRADE: 'unknown trade',
+  ALREADY_SETTLED: 'trade is already settled',
+  NO_WALLET: 'seller or buyer has no wallet address',
+} as const;
 
 export async function POST(req: Request) {
-  // TODO(Rahi): ethers v6 relayer -> EnergyEscrow.settle(), persist
-  // SettlementReceipt, fall back to mode:'simulated' if the RPC is down.
-  void req;
-  return NextResponse.json({ error: 'not implemented' }, { status: 501 });
+  let tradeId: unknown;
+  try {
+    ({ tradeId } = await req.json());
+  } catch {
+    return NextResponse.json({ error: 'invalid json' }, { status: 400 });
+  }
+
+  if (typeof tradeId !== 'string' || !tradeId) {
+    return NextResponse.json({ error: 'tradeId is required' }, { status: 400 });
+  }
+
+  const outcome = await settleTrade(tradeId);
+
+  if (!outcome.ok) {
+    return NextResponse.json(
+      { error: MESSAGE[outcome.code], detail: outcome.detail },
+      { status: STATUS[outcome.code] },
+    );
+  }
+
+  return NextResponse.json(outcome.receipt, { status: 201 });
 }

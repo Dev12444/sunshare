@@ -90,7 +90,12 @@ DEMO_TZ_OFFSET_HOURS = 5.5
 #             consistent when you rehearse at 4am.
 #   live      always use Open-Meteo
 #   synthetic never call the network
-WEATHER_MODE = os.getenv("WEATHER_MODE", "auto")
+# Default is "synthetic" and that is deliberate. The demo beats promise that
+# rehearsal and stage produce identical numbers, and live cloud cover makes
+# that false - the same beat genuinely differs between a clear morning and an
+# overcast one. Set WEATHER_MODE=auto to show the live Open-Meteo integration,
+# accepting that the scripted figures will then move.
+WEATHER_MODE = os.getenv("WEATHER_MODE", "synthetic")
 
 # --------------------------------------------------------------- weather ---
 

@@ -1,14 +1,8 @@
-/**
- * Trade Ledger — Diya, H16–H18.
- * TODO: settlement list, tx hash -> explorer links, optional wallet connect
- */
+import type { Metadata } from 'next';
+import { LedgerView } from '@/components/ledger/ledger-view';
+
+export const metadata: Metadata = { title: 'Ledger' };
+
 export default function Page() {
-  return (
-    <section className="space-y-4">
-      <h1 className="text-lg font-semibold">Trade Ledger</h1>
-      <div className="tile text-sm text-grid-400">
-        Stub — owned by Diya (H16–H18).
-      </div>
-    </section>
-  );
+  return <LedgerView />;
 }

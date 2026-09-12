@@ -87,9 +87,8 @@ contract EnergyEscrow {
 
     /**
      * @notice Publish the Merkle root of a slot's order book before settling it.
-     * @dev TODO(Rahi, H13): called once per slot by the orchestrator.
-     *      This is cut-list item #2 — if time runs out, settle() still works
-     *      without it.
+     * @dev Called once per slot by the orchestrator, before settling. This is
+     *      cut-list item #2 — settle() works without it.
      */
     function commitSlot(uint64 slot, bytes32 merkleRoot, uint256 orderCount)
         external
@@ -101,12 +100,8 @@ contract EnergyEscrow {
 
     /**
      * @notice Settle one matched trade on delivered energy.
-     * @dev TODO(Rahi, H10.5-H13). Must:
-     *      - revert if price is outside [feedInTariffPaise, retailTariffPaise]
-     *      - revert if deliveredWh > contractedWh
-     *      - revert if the trade id was already settled
-     *      - record the wheeling fee owed to the DISCOM
-     *      - emit TradeSettled
+     * @dev Reverts outside the corridor, on delivered > contracted, or on a
+     *      repeated trade id. The wheeling fee is charged on delivered energy.
      */
     function settle(
         bytes32 id,
@@ -132,9 +127,35 @@ contract EnergyEscrow {
             );
         }
 
-        // TODO(Rahi): compute the wheeling fee on delivered energy and store
-        // the Trade struct before emitting.
-        revert("TODO(Rahi): implement settle");
+        // Charged on what actually arrived, not what was contracted — the
+        // DISCOM wheeled the delivered electrons, not the lost ones.
+        uint256 feePaise = (deliveredWh * wheelingChargePaise) / 1000;
+
+        trades[id] = Trade({
+            id: id,
+            seller: seller,
+            buyer: buyer,
+            contractedWh: contractedWh,
+            deliveredWh: deliveredWh,
+            pricePaisePerKwh: pricePaisePerKwh,
+            wheelingFeePaise: feePaise,
+            slot: slot,
+            settled: true
+        });
+
+        emit TradeSettled(id, seller, buyer, deliveredWh, pricePaisePerKwh, feePaise);
+    }
+
+    /// @notice Gross, wheeling and net for a settled trade, all in paise.
+    function settlementBreakdown(bytes32 id)
+        external
+        view
+        returns (uint256 grossPaise, uint256 wheelingFeePaise, uint256 netToSellerPaise)
+    {
+        Trade memory t = trades[id];
+        grossPaise = (t.deliveredWh * t.pricePaisePerKwh) / 1000;
+        wheelingFeePaise = t.wheelingFeePaise;
+        netToSellerPaise = grossPaise - wheelingFeePaise;
     }
 
     /// @notice DISCOM updates the corridor when the tariff order changes.

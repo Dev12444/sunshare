@@ -97,13 +97,27 @@ contract CommunityPool {
     }
 
     /**
+     * @notice Set a donor's configuration on their behalf.
+     * @dev Households in this demo never hold a key — the platform relays for
+     *      them, exactly as it does for settlement — so `configureDonor` alone
+     *      would leave the pool permanently unreachable for real users. Gated
+     *      to the DISCOM so a third party still cannot alter someone's giving.
+     */
+    function configureDonorFor(
+        address donor,
+        uint16 donationBps,
+        uint256 dailyThresholdWh
+    ) external onlyDiscom {
+        if (donationBps > 10_000) revert InvalidBps(donationBps);
+        donors[donor] = DonorConfig(donationBps, dailyThresholdWh, donationBps > 0);
+        emit DonorConfigured(donor, donationBps, dailyThresholdWh);
+    }
+
+    /**
      * @notice Route a donation during settlement.
-     * @dev TODO(Rahi, H10.5-H13). Must:
-     *      - revert unless the beneficiary is verified
-     *      - do nothing if the donor's day generation is below the threshold
-     *      - compute donationBps of the surplus above the threshold
-     *      - update receivedWh / donatedTodayWh / totalDonatedWh
-     *      - emit Donated
+     * @dev Reverts unless the beneficiary is verified, and returns zero below
+     *      the donor's daily threshold. The bps share is a running daily
+     *      target, topped up slot by slot and capped by availableWh.
      *
      * Called by EnergyEscrow during settle(), not directly by users.
      */
@@ -115,8 +129,34 @@ contract CommunityPool {
         uint64 slot
     ) external returns (uint256 donatedWh) {
         if (!beneficiaries[beneficiary].verified) revert NotVerified(beneficiary);
-        // TODO(Rahi): implement the threshold + bps maths.
-        revert("TODO(Rahi): implement routeDonation");
+
+        DonorConfig memory config = donors[donor];
+        if (!config.active) return 0;
+        if (dayGenerationWh <= config.dailyThresholdWh) return 0;
+
+        uint256 aboveThresholdWh = dayGenerationWh - config.dailyThresholdWh;
+        uint256 targetWh = (aboveThresholdWh * config.donationBps) / 10_000;
+
+        // dayGenerationWh is cumulative, so the target is a running total for
+        // the day. Settling slot by slot must top up towards it, not re-donate
+        // the same share of the same surplus every slot.
+        uint256 alreadyWh = donatedTodayWh[donor];
+        if (targetWh <= alreadyWh) return 0;
+
+        donatedWh = targetWh - alreadyWh;
+        if (donatedWh > availableWh) donatedWh = availableWh;
+        if (donatedWh == 0) return 0;
+
+        beneficiaries[beneficiary].receivedWh += donatedWh;
+        donatedTodayWh[donor] += donatedWh;
+        totalDonatedWh += donatedWh;
+
+        emit Donated(donor, beneficiary, donatedWh, slot);
+    }
+
+    /// @notice Resets the daily counter so a new solar day starts from zero.
+    function startNewDay(address donor) external onlyDiscom {
+        donatedTodayWh[donor] = 0;
     }
 
     function beneficiaryCount() external view returns (uint256) {

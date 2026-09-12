@@ -1,14 +1,8 @@
-/**
- * Community Pool — Diya, H14–H16.
- * TODO: Robin Hood tile, donor leaderboard, verified beneficiary cards
- */
+import type { Metadata } from 'next';
+import { CommunityView } from '@/components/community/community-view';
+
+export const metadata: Metadata = { title: 'Community' };
+
 export default function Page() {
-  return (
-    <section className="space-y-4">
-      <h1 className="text-lg font-semibold">Community Pool</h1>
-      <div className="tile text-sm text-grid-400">
-        Stub — owned by Diya (H14–H16).
-      </div>
-    </section>
-  );
+  return <CommunityView />;
 }

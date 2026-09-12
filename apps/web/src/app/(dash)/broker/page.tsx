@@ -1,14 +1,8 @@
-/**
- * AI Energy Broker — Diya, H6.5–H9.
- * TODO: natural-language goal input + streaming Agent Activity feed
- */
+import type { Metadata } from 'next';
+import { BrokerView } from '@/components/broker/broker-view';
+
+export const metadata: Metadata = { title: 'Broker' };
+
 export default function Page() {
-  return (
-    <section className="space-y-4">
-      <h1 className="text-lg font-semibold">AI Energy Broker</h1>
-      <div className="tile text-sm text-grid-400">
-        Stub — owned by Diya (H6.5–H9).
-      </div>
-    </section>
-  );
+  return <BrokerView />;
 }

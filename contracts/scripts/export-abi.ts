@@ -2,8 +2,6 @@
  * Copy compiled ABIs into packages/shared/src/abis so the frontend can decode
  * settlement events without depending on the Hardhat artifacts directory.
  * Rahi, H9–H11.5 — this is the handoff to Diya.
- *
- * TODO(Rahi): read artifacts/contracts/*.sol/*.json, write { abi } only.
  */
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';

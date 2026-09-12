@@ -227,13 +227,7 @@ class Simulator:
         out: list[MeterReading] = []
         elevation = solar_elevation_deg(config.DEMO_LAT, config.DEMO_LNG, self.sim_time)
 
-        # Prefer the live irradiance reading when the sun is actually up and the
-        # API gave us one; otherwise fall back to the geometric clear-sky value.
-        geometric = clear_sky_irradiance(elevation)
-        if snapshot.source == "open-meteo" and elevation > 0 and snapshot.irradiance_wm2 > 0:
-            irradiance = snapshot.irradiance_wm2
-        else:
-            irradiance = geometric
+        irradiance = snapshot.irradiance_wm2
 
         self.grid.reset_loads()
 
@@ -320,8 +314,27 @@ class Simulator:
 
     # -- tick --------------------------------------------------------------
 
+    def align_to_sim_clock(self, snapshot: WeatherSnapshot) -> WeatherSnapshot:
+        """Replace live irradiance with the geometric value for the simulated hour.
+
+        Irradiance belongs to the real clock: a genuine 200 W/m2 reading taken
+        at 10:55 on an overcast morning cannot describe a simulated noon, and
+        applying it flattened a 53.5 kWp neighbourhood to 2.6 kW. Cloud cover
+        survives the transplant because it is a property of the sky rather than
+        of the hour; irradiance does not.
+
+        Corrected here, once, so that the figure the dashboard displays is the
+        same one the generation model actually used.
+        """
+        elevation = solar_elevation_deg(config.DEMO_LAT, config.DEMO_LNG, self.sim_time)
+        return snapshot.model_copy(
+            update={"irradiance_wm2": round(clear_sky_irradiance(elevation), 1)}
+        )
+
     async def build_tick(self, elapsed_real_seconds: float) -> Tick:
-        snapshot = await weather.fetch_weather(hour_of_day=self.hour_of_day)
+        snapshot = self.align_to_sim_clock(
+            await weather.fetch_weather(hour_of_day=self.hour_of_day)
+        )
         elapsed_hours = (self.speed * elapsed_real_seconds) / 60.0
         readings = self.readings(snapshot, elapsed_hours)
         self.seq += 1

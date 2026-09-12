@@ -218,3 +218,39 @@ def test_day_generation_accumulates_then_resets_at_midnight():
     for m in second.meters:
         if m.meter_id in producing:
             assert m.day_generation_kwh >= by_id[m.meter_id]
+
+
+def test_live_weather_never_dictates_irradiance(monkeypatch):
+    """Irradiance must come from solar geometry at the SIMULATED hour.
+
+    Regression: with WEATHER_MODE=auto on a genuinely overcast real morning,
+    Open-Meteo's real 200 W/m^2 was being applied to a simulated noon, so a
+    53.5 kWp neighbourhood produced 2.6 kW instead of 36. A real instantaneous
+    reading belongs to the real clock; pasting it onto a simulated one is a
+    category error. Cloud cover survives the transplant, irradiance does not.
+    """
+    import asyncio
+
+    from app import weather
+    from app.models import WeatherSnapshot
+
+    async def overcast_dawn(*a, **k):
+        # What Open-Meteo actually returned at 10:55 IST that day.
+        return WeatherSnapshot(
+            cloud_cover_pct=100.0, irradiance_wm2=200.0, temp_c=27.0, source="open-meteo"
+        )
+
+    monkeypatch.setattr(weather, "fetch_weather", overcast_dawn)
+
+    async def run():
+        s = Simulator()
+        s.sim_time = s.sim_time.replace(hour=12, minute=0)
+        return await s.build_tick(1.0)
+
+    tick = asyncio.run(run())
+    total = sum(r.generation_kw for r in tick.meters)
+
+    # 100% cloud legitimately suppresses output, but midday geometry must still
+    # dominate: a real dawn reading cannot flatten a simulated noon.
+    assert total > 8.0, f"live irradiance leaked into the simulated clock: {total} kW"
+    assert tick.weather.irradiance_wm2 > 700, "irradiance is not the geometric value"

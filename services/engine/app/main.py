@@ -105,14 +105,14 @@ async def ws_ticks(socket: WebSocket) -> None:
 @app.get("/market/state", response_model=MarketState)
 async def market_state() -> MarketState:
     s = sim()
-    snapshot = await weather.fetch_weather(hour_of_day=s.hour_of_day)
+    snapshot = s.align_to_sim_clock(await weather.fetch_weather(hour_of_day=s.hour_of_day))
     return s.market_state(s.readings(snapshot, 0.0))
 
 
 @app.get("/meters", response_model=list[MeterReading])
 async def meters() -> list[MeterReading]:
     s = sim()
-    snapshot = await weather.fetch_weather(hour_of_day=s.hour_of_day)
+    snapshot = s.align_to_sim_clock(await weather.fetch_weather(hour_of_day=s.hour_of_day))
     return s.readings(snapshot, 0.0)
 
 
@@ -145,7 +145,7 @@ async def broker_step(body: dict = Body(...)) -> BrokerDecision:
         raise HTTPException(status_code=422, detail=f"invalid policy: {exc}") from exc
 
     s = sim()
-    snapshot = await weather.fetch_weather(hour_of_day=s.hour_of_day)
+    snapshot = s.align_to_sim_clock(await weather.fetch_weather(hour_of_day=s.hour_of_day))
     readings = s.readings(snapshot, 0.0)
 
     reading = next((r for r in readings if r.user_id == policy.user_id), None)
@@ -233,7 +233,7 @@ async def scenario_jump(body: dict = Body(...)) -> dict[str, object]:
     if beat.congest:
         s.force_congestion(scenario_mod.DEMO_CONGESTED_EDGE, True)
 
-    snapshot = await weather.fetch_weather(hour_of_day=s.hour_of_day)
+    snapshot = s.align_to_sim_clock(await weather.fetch_weather(hour_of_day=s.hour_of_day))
     readings = s.readings(snapshot, 0.0)
     market = s.market_state(readings)
 
