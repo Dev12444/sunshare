@@ -6,7 +6,6 @@ import { Inspector } from '@/components/ui/inspector';
 import { Metric, MetricCell, MetricRow } from '@/components/ui/metric';
 import { PageHead, Panel, PanelBody, PanelHead } from '@/components/ui/panel';
 import { Skeleton } from '@/components/ui/states';
-import { Toggle } from '@/components/ui/controls';
 import { MeterBar, Tag } from '@/components/ui/tag';
 import { congestionLevel, congestionTone, utilisation } from '@/lib/domain';
 import { kwh, pct } from '@/lib/format';

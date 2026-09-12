@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { TradeRecord } from '@sunshare/shared';
-import { Button, Input, SegmentedControl, Select } from '@/components/ui/controls';
+import { Button, Input, SegmentedControl } from '@/components/ui/controls';
 import { DRAWER, Inspector } from '@/components/ui/inspector';
 import { Metric, MetricCell, MetricRow } from '@/components/ui/metric';
 import { PageHead, Panel } from '@/components/ui/panel';

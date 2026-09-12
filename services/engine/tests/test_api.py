@@ -203,6 +203,22 @@ def test_carbon_with_zero(client):
     assert c["co2AvoidedKg"] == 0.0
 
 
+def test_carbon_rejects_an_unseeded_user(client):
+    """A user the engine never seeded is a 404, not a page of zeros.
+
+    /carbon/summary used to answer 200 with userId "summary" — the path
+    segment read as a user id — which made a caller's wrong URL look like a
+    real user who simply had not traded yet.
+    """
+    assert client.get("/carbon/NOT-A-REAL-USER").status_code == 404
+    assert client.get("/carbon/summary").status_code == 404
+
+
+def test_carbon_accepts_every_seeded_user(client):
+    for n in range(1, 13):
+        assert client.get(f"/carbon/U-{n:02d}").status_code == 200
+
+
 # ------------------------------------------------------------ sim controls ---
 
 
@@ -211,6 +227,20 @@ def test_sim_control_validates_ranges(client):
     assert client.post("/sim/control", json={"speed": 9999}).status_code == 422
     assert client.post("/sim/control", json={"jumpToHour": 25}).status_code == 422
     assert client.post("/sim/control", json={"congestEdge": "nope"}).status_code == 404
+
+
+def test_sim_control_rejects_unknown_keys(client):
+    """A mistyped control must fail loudly — this one is driven live on stage."""
+    r = client.post("/sim/control", json={"action": "jump", "hour": 13})
+    assert r.status_code == 422
+    assert "action" in r.json()["detail"] and "hour" in r.json()["detail"]
+
+    # A good key alongside a bad one is still refused, rather than half-applied.
+    before = client.post("/sim/control", json={}).json()["simTime"]
+    assert client.post(
+        "/sim/control", json={"jumpToHour": 9, "speeed": 5}
+    ).status_code == 422
+    assert client.post("/sim/control", json={}).json()["simTime"] == before
 
 
 def test_sim_control_jump_and_congest(client):

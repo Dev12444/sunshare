@@ -18,7 +18,6 @@ import {
   DEFAULT_TARIFF,
   SLOT_MINUTES,
   type Bid,
-  type BrokerDecision,
   type BrokerPolicy,
   type CommunityDonation,
   type GridEdge,
@@ -40,8 +39,9 @@ import {
   BENEFICIARIES,
   EDGES,
   HOUSEHOLDS,
+  HOUSEHOLD_BY_USER,
   NODES,
-  NODE_BY_ID,
+  SESSIONS,
   displayName,
 } from '@/lib/seed';
 import {
@@ -50,7 +50,7 @@ import {
   generationKw,
   solarElevationDeg,
 } from '@/lib/solar';
-import { hopTier, pathBetween, pathEdgeIds, pathLengthKm } from './grid-path';
+import { hopTier, pathBetween, pathLengthKm } from './grid-path';
 
 /* ------------------------------------------------------------------ setup */
 
@@ -454,10 +454,9 @@ export function clearSlot(
  */
 export function matchSlot(slotIndex: number, orders: SlotOrders): MatchResult {
   const started = performance.now();
-  const { pricePaise, volumeKwh } = clearSlot(orders.listings, orders.bids);
+  const { pricePaise } = clearSlot(orders.listings, orders.bids);
 
   const supplyKwh = orders.listings.reduce((s, l) => s + l.kwh, 0);
-  const demandKwh = orders.bids.reduce((s, b) => s + b.kwh, 0);
 
   const sellers = orders.listings
     .filter((l) => l.askPricePaise <= pricePaise)
@@ -564,6 +563,36 @@ const SEEDED_DONORS: Record<string, number> = {
   'U-11': 10,
 };
 
+/**
+ * The community share a seller is giving away in this slot.
+ *
+ * Precedence mirrors exactly what the Community page shows as the effective
+ * percentage: an active broker policy wins, otherwise the signed-in
+ * prosumer's own configuration, and every other household keeps its seeded
+ * standing order.
+ *
+ * settleSlot used to ignore the configured share entirely, so the only donors
+ * were the seeded ones — and the demo prosumer is not among them. Changing
+ * the share on the Community page updated the label and donated nothing.
+ *
+ * The share only starts flowing once the donor's own generation has crossed
+ * their daily threshold, which is the rule CommunityPool.sol enforces
+ * on chain.
+ */
+function donationPctFor(
+  sellerId: string,
+  policy: BrokerPolicy | null,
+  donation: DonationConfig,
+  minutes: number,
+): number {
+  if (policy && policy.userId === sellerId) return policy.communityDonationPct;
+  if (sellerId !== SESSIONS.PROSUMER.id) return SEEDED_DONORS[sellerId] ?? 0;
+
+  const house = HOUSEHOLD_BY_USER.get(sellerId);
+  const generated = house ? dayGenerationKwh(house.panelKw, minutes) : 0;
+  return generated >= donation.dailyThresholdKwh ? donation.donationPct : 0;
+}
+
 export function settleSlot(
   slotIndex: number,
   policy: BrokerPolicy | null,
@@ -621,10 +650,12 @@ export function settleSlot(
     });
 
     // Community allocation comes off the seller's cleared volume.
-    const pct =
-      policy && policy.userId === p.sellerId
-        ? policy.communityDonationPct
-        : (SEEDED_DONORS[p.sellerId] ?? 0);
+    const pct = donationPctFor(
+      p.sellerId,
+      policy,
+      donation,
+      slotStartMin + SLOT_MINUTES,
+    );
     if (pct > 0 && !isFailure) {
       const kwh = round((p.deliveredKwh * pct) / 100, 4);
       if (kwh >= 0.01) {

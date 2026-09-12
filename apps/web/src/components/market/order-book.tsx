@@ -87,7 +87,6 @@ export type SortKey = 'price' | 'kwh' | 'distance' | 'loss';
 export function OrderBookSide({
   side,
   rows,
-  tariff,
   clearingPricePaise,
   onSelect,
   selectedId,

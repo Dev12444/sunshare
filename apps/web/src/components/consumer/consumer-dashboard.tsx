@@ -37,7 +37,6 @@ export function ConsumerDashboard() {
   const market = useStore((s) => s.market);
   const history = useStore((s) => s.history);
   const listings = useStore((s) => s.openListings);
-  const bids = useStore((s) => s.openBids);
   const myBids = useStore((s) => s.myBids);
   const simMinutes = useStore((s) => s.simMinutes);
   const receipts = useStore(allReceipts);

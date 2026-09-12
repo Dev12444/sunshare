@@ -181,7 +181,15 @@ async def carbon(user_id: str, local_kwh: float = 0.0) -> CarbonSummary:
 
     The engine is stateless about trades — Rahi's database owns the ledger —
     so the traded total is passed in and the maths happens here.
+
+    The user id is still checked against the seeded roster: answering an
+    unknown user with a well-formed page of zeros hides a typo in a caller's
+    URL, and /carbon/summary reading back as a user named "summary" is exactly
+    that mistake.
     """
+    if user_id not in sim().user_ids:
+        raise HTTPException(status_code=404, detail=f"no such user: {user_id}")
+
     now = datetime.now(IST)
     return carbon_mod.summarise(
         user_id,
@@ -248,6 +256,11 @@ async def scenario_jump(body: dict = Body(...)) -> dict[str, object]:
     }
 
 
+SIM_CONTROL_KEYS = frozenset(
+    {"speed", "jumpToHour", "congestEdge", "clearCongestion"}
+)
+
+
 @app.post("/sim/control")
 async def sim_control(body: dict = Body(...)) -> dict[str, object]:
     """Demo controls, used live during the pitch.
@@ -256,7 +269,21 @@ async def sim_control(body: dict = Body(...)) -> dict[str, object]:
     { "jumpToHour": 12.5 }            jump to peak generation
     { "congestEdge": "e-F-1-H-01" }   force the scripted congestion event
     { "clearCongestion": true }       release it again
+
+    Unknown keys are rejected rather than ignored. This is driven live on
+    stage, and a silently mistyped control that returns 200 and changes
+    nothing is the worst possible behaviour in front of judges.
     """
+    unknown = set(body) - SIM_CONTROL_KEYS
+    if unknown:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"unknown control key(s): {', '.join(sorted(unknown))}; "
+                f"expected any of {', '.join(sorted(SIM_CONTROL_KEYS))}"
+            ),
+        )
+
     s = sim()
 
     if "speed" in body:

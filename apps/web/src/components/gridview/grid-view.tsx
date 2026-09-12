@@ -126,7 +126,7 @@ export function GridView() {
       header: 'Utilisation',
       align: 'right',
       width: '140px',
-      cell: ({ edge, u }) => {
+      cell: ({ u }) => {
         const level = congestionLevel(u);
         return (
           <div className="flex items-center justify-end gap-2">

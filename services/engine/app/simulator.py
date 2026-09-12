@@ -186,6 +186,19 @@ class Simulator:
         self._day_index = self.sim_time.timetuple().tm_yday
         self._last_clearing_price: int | None = None
         self._forced_congestion: set[str] = set()
+        self._user_ids = frozenset(h["userId"] for h in self.households)
+
+    # -- identity ----------------------------------------------------------
+
+    @property
+    def user_ids(self) -> frozenset[str]:
+        """Every user the seeded neighbourhood knows about.
+
+        The engine is stateless about trades, but it does own the household
+        roster, so it is the right place to reject a user id that was never
+        seeded rather than answering for them with zeros.
+        """
+        return self._user_ids
 
     # -- clock -------------------------------------------------------------
 

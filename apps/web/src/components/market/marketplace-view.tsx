@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { DepthChart } from '@/components/charts/depth-chart';
 import { PriceChart } from '@/components/charts/price-chart';
-import { Button, Field, SegmentedControl, Select } from '@/components/ui/controls';
+import { Button, SegmentedControl, Select } from '@/components/ui/controls';
 import { DRAWER, Inspector } from '@/components/ui/inspector';
 import { DataRow, Metric, MetricCell, MetricRow } from '@/components/ui/metric';
 import { PageHead, Panel, PanelBody, PanelHead } from '@/components/ui/panel';

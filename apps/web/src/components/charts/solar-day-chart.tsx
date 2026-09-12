@@ -13,7 +13,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { kw, simClock } from '@/lib/format';
+import { kw } from '@/lib/format';
 import type { DayPoint } from '@/lib/mock/state-defaults';
 import { axisProps, useChartTheme } from './chart-theme';
 import { ChartLegend, ChartTooltip } from './tooltip';
