@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Role } from '@sunshare/shared';
 import { ROLE_LABEL, ROLE_SUBTITLE, SESSIONS } from '@/lib/seed';
@@ -112,6 +113,14 @@ export function RoleSwitcher() {
             Demo identities, no authentication. Seeded from{' '}
             <span className="font-mono">{Object.keys(SESSIONS).length}</span> roles.
           </p>
+          <Link
+            href="/account"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="block border-t border-rule/[.13] px-3 py-2 text-sm text-ink hover:bg-sunken"
+          >
+            Account and energy profile
+          </Link>
           <button
             type="button"
             role="menuitem"
