@@ -1,5 +1,7 @@
 # ☀️ SunShare
 
+[![CI](https://github.com/Dev12444/sunshare/actions/workflows/ci.yml/badge.svg)](https://github.com/Dev12444/sunshare/actions/workflows/ci.yml)
+
 **Peer-to-peer rooftop solar marketplace** — HackOut'26, Team **Null Pointers**.
 Theme: Renewable Energy Intelligence.
 
@@ -82,9 +84,12 @@ accounts to land in that role:
 npm run lint      --workspace=@sunshare/web   # eslint, flat config
 npm run typecheck --workspace=@sunshare/web   # tsc --noEmit
 npm run build     --workspace=@sunshare/web   # production build
-( cd services/engine && pytest )              # 220 tests
-npm test --workspace=@sunshare/contracts      # 17 tests
+( cd services/engine && pytest )              # 221 tests
+npm test --workspace=@sunshare/contracts      # 18 tests
 ```
+
+All five run on every push to `main` — see the badge above, or
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ### Dev — engine
 
