@@ -20,6 +20,16 @@
   --rule: 26 23 19;
   --rule-strong: 26 23 19;
 
+  /* Deep forest green — the brand's second half. The rail is a dark surface
+     in both themes (the reference's signature), so these are absolute rather
+     than inverting: a navigation rail that flips to cream in dark mode reads
+     as a different product. */
+  --forest: 15 61 58;
+  --forest-2: 20 78 72;
+  --forest-3: 46 109 99;
+  --forest-ink: 232 240 236;
+  --forest-ink-2: 158 186 176;
+
   --solar: 224 138 12;
   --solar-deep: 158 92 3;
   --solar-line: 200 122 10;

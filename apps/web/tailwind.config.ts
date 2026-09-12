@@ -30,6 +30,14 @@ export default {
         rule: 'rgb(var(--rule) / <alpha-value>)',
         'rule-strong': 'rgb(var(--rule-strong) / <alpha-value>)',
 
+        forest: {
+          DEFAULT: 'rgb(var(--forest) / <alpha-value>)',
+          2: 'rgb(var(--forest-2) / <alpha-value>)',
+          3: 'rgb(var(--forest-3) / <alpha-value>)',
+          ink: 'rgb(var(--forest-ink) / <alpha-value>)',
+          'ink-2': 'rgb(var(--forest-ink-2) / <alpha-value>)',
+        },
+
         solar: {
           wash: 'rgb(var(--solar-wash) / <alpha-value>)',
           line: 'rgb(var(--solar-line) / <alpha-value>)',

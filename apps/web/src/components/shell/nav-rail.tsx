@@ -25,14 +25,17 @@ export function NavRail() {
   return (
     <nav
       aria-label="Primary"
-      className="sticky top-0 hidden h-dvh w-[208px] shrink-0 flex-col border-r border-rule/[.13] bg-surface lg:flex"
+      className="sticky top-0 hidden h-dvh w-[208px] shrink-0 flex-col bg-forest lg:flex"
     >
       <Link
         href={items[0].href}
-        className="flex h-12 shrink-0 items-center gap-2 border-b border-rule/[.13] px-4"
+        className="flex h-12 shrink-0 items-center gap-2 border-b border-white/[.09] px-4"
       >
         <BrandMark />
-        <Wordmark className="text-md" />
+        <span className="text-md">
+          <span className="font-semibold tracking-[-0.01em] text-forest-ink">Sun</span>
+          <span className="font-normal tracking-[-0.01em] text-forest-ink-2">Share</span>
+        </span>
       </Link>
 
       <div className="min-h-0 flex-1 overflow-y-auto py-2">
@@ -44,7 +47,7 @@ export function NavRail() {
 
         {roleItems.length > 0 ? (
           <>
-            <div className="mt-4 px-4 pb-1 text-label font-semibold uppercase text-ink-3">
+            <div className="mt-4 px-4 pb-1 text-label font-semibold uppercase text-forest-ink-2/70">
               Cross-role
             </div>
             <ul>
@@ -56,8 +59,8 @@ export function NavRail() {
         ) : null}
       </div>
 
-      <div className="shrink-0 border-t border-rule/[.13] px-4 py-3">
-        <SimControls />
+      <div className="shrink-0 border-t border-white/[.09] px-4 py-3">
+        <SimControls tone="dark" />
       </div>
 
     </nav>
@@ -79,7 +82,9 @@ function RailItem({
         aria-current={active ? 'page' : undefined}
         className={cn(
           'relative flex items-center gap-2.5 px-4 py-[7px] text-sm transition-colors duration-120',
-          active ? 'bg-sunken font-medium text-ink' : 'text-ink-2 hover:bg-sunken/60 hover:text-ink',
+          active
+            ? 'bg-forest-2 font-medium text-forest-ink'
+            : 'text-forest-ink-2 hover:bg-forest-2/55 hover:text-forest-ink',
         )}
       >
         <span
@@ -89,7 +94,7 @@ function RailItem({
             active ? 'bg-solar' : 'bg-transparent',
           )}
         />
-        <Icon className={cn(active ? 'text-ink' : 'text-ink-3')} />
+        <Icon className={cn(active ? 'text-solar' : 'text-forest-ink-2/75')} />
         {item.label}
       </Link>
     </li>

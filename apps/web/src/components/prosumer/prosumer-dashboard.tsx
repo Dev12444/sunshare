@@ -23,6 +23,7 @@ import { allReceipts, setState, useStore } from '@/lib/store';
 import { useDayLedger, useDaySeries, useMyReading, useTariff } from '@/hooks/use-derived';
 import { useRoleSurface } from '@/hooks/use-role-surface';
 import { InstallPrompt } from '@/components/shell/install-prompt';
+import { HeroBanner } from './hero-banner';
 
 /**
  * Prosumer overview.
@@ -62,6 +63,18 @@ export function ProsumerDashboard() {
 
   return (
     <div className="space-y-4">
+      {/* The reference opens on a solar band before any figure. It earns the
+          space by carrying the greeting, the simulated clock and live output —
+          the three things you check before deciding whether to read on. */}
+      <HeroBanner
+        name={fullName(user.id)}
+        subtitle={
+          reading
+            ? `${reading.panelKw} kW rooftop · ${feederOf(reading.nodeId)} · ${substationOf(reading.nodeId)}`
+            : 'Rooftop premises'
+        }
+      />
+
       <PageHead
         stage="GENERATE"
         title={fullName(user.id)}
