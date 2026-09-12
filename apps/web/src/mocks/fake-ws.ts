@@ -1,30 +1,43 @@
 /**
- * Fake tick emitter — Diya, H3–H5.
+ * Tick emitter for the mock transport.
  *
- * Replays fixtures/ticks.json on a loop so every dashboard shows moving numbers
- * with zero backend running. Dev replaces the fixture with a real capture from
- * the simulator at H4; the shape never changes, so nothing downstream breaks.
+ * Generates frames from the same deterministic market engine the rest of the
+ * mock layer uses, rather than replaying a captured fixture — so the clock can
+ * be jumped, paused and re-seeded and the numbers stay consistent with the
+ * order book and the ledger.
  *
- * Swap to the real socket by setting NEXT_PUBLIC_USE_MOCKS=false (see
- * hooks/use-ticks.ts). That flag is the whole integration switch.
+ * `useTicks()` reads this when NEXT_PUBLIC_USE_MOCKS=true and the engine
+ * WebSocket when it is false. That flag is the whole integration switch.
  */
 import type { Tick } from '@sunshare/shared';
-import fixtures from './fixtures/ticks.json';
+import {
+  DAY_END_MIN,
+  DAY_START_MIN,
+  DEFAULT_DONATION,
+  DEFAULT_START_MIN,
+  tickAt,
+} from '@/lib/mock/market-engine';
 
 const FRAME_MS = 1000;
 
-export function startFakeTicks(onTick: (t: Tick) => void): () => void {
-  const frames = fixtures as unknown as Tick[];
-  if (frames.length === 0) return () => {};
+export function startFakeTicks(
+  onTick: (t: Tick) => void,
+  options: { startMinutes?: number; speed?: number } = {},
+): () => void {
+  let minutes = options.startMinutes ?? DEFAULT_START_MIN;
+  const speed = options.speed ?? 1;
+  let seq = 0;
 
-  let i = 0;
-  onTick(frames[0]);
+  const emit = () => {
+    const { tick } = tickAt(minutes, ++seq, speed, [], null, DEFAULT_DONATION);
+    onTick(tick);
+  };
 
+  emit();
   const id = setInterval(() => {
-    i = (i + 1) % frames.length;
-    const frame = frames[i];
-    // Keep wall-clock fresh so "last updated" labels look alive.
-    onTick({ ...frame, tsReal: new Date().toISOString() });
+    minutes += speed;
+    if (minutes > DAY_END_MIN) minutes = DAY_START_MIN;
+    emit();
   }, FRAME_MS);
 
   return () => clearInterval(id);

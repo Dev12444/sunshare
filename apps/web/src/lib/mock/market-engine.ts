@@ -131,7 +131,13 @@ function computeWeather(minutes: number): WeatherSnapshot {
   const cloudCoverPct = Math.max(2, Math.min(88, band + noise));
 
   const elevation = solarElevationDeg(h, SIM_DAY_OF_YEAR);
-  const irradianceWm2 = clearSkyIrradiance(elevation) * (1 - 0.75 * (cloudCoverPct / 100));
+  // Clear-sky, NOT cloud-attenuated. generationKw() applies the cloud factor
+  // itself, so attenuating here as well applied it twice and under-reported
+  // generation by about a fifth — 2.96 kW from a 7.5 kWp array at midday where
+  // the engine says 5.03. The engine reports geometric irradiance in its
+  // snapshot for the same reason: cloud belongs to the panel model, not to the
+  // sky reading.
+  const irradianceWm2 = clearSkyIrradiance(elevation);
   const tempC = 24.5 + 8.5 * Math.exp(-(((h - 14.6) / 4.1) ** 2)) - 1.4 * (cloudCoverPct / 100);
 
   return {

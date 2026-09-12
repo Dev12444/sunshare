@@ -1,18 +1,16 @@
+import type { Metadata } from 'next';
+import { OfflineSnapshot } from '@/components/shell/offline-snapshot';
+
+export const metadata: Metadata = { title: 'Offline' };
+
 /**
- * Offline fallback — Diya, H1–H3.
- * Served by the service worker when a navigation fails.
- * TODO: read the last known market state from IndexedDB and render it here
- * with an "as of HH:MM" banner, instead of this placeholder.
+ * Offline fallback, served by the service worker when a navigation fails.
+ *
+ * It never shows an empty screen. The last market state this device received
+ * is kept in IndexedDB and painted here behind an "as of" line, because a
+ * household deciding whether to run the washing machine is better served by a
+ * fifteen-minute-old clearing price than by an apology.
  */
 export default function OfflinePage() {
-  return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-3 p-8 text-center">
-      <span className="text-4xl">🌙</span>
-      <h1 className="text-xl font-semibold">You&apos;re offline</h1>
-      <p className="max-w-sm text-sm text-grid-400">
-        SunShare is showing your last known market snapshot. Live trading
-        resumes automatically when you reconnect.
-      </p>
-    </main>
-  );
+  return <OfflineSnapshot />;
 }
