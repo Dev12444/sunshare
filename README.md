@@ -58,6 +58,27 @@ MSW intercepts every API call and a fake emitter replays recorded ticks, so the
 whole UI is live and clickable without Dev's engine or Rahi's database.
 Flipping `NEXT_PUBLIC_USE_MOCKS=false` is the entire integration switch.
 
+The app opens on a sign-in page. **There is no credential store and no password
+is checked** — the screen says so in plain words. Pick any of the four seeded
+accounts to land in that role:
+
+| Role | Email |
+|---|---|
+| Prosumer (start here) | `anita.patel@sunshare.demo` |
+| Consumer | `rakesh.trivedi@sunshare.demo` |
+| DISCOM | `operations@guvnl.demo` |
+| Regulator | `oversight@gerc.demo` |
+
+### Checks
+
+```bash
+npm run lint      --workspace=@sunshare/web   # eslint, flat config
+npm run typecheck --workspace=@sunshare/web   # tsc --noEmit
+npm run build     --workspace=@sunshare/web   # production build
+( cd services/engine && pytest )              # 220 tests
+npm test --workspace=@sunshare/contracts      # 17 tests
+```
+
 ### Dev — engine
 
 ```bash
