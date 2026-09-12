@@ -1,39 +1,65 @@
 /**
  * Seed — Rahi, H1–H3.5.
  *
- * Four demo accounts (no real auth by design), one substation with two feeders,
- * ~8 houses with varied panel sizes and consumption archetypes, and three
- * verified community beneficiaries.
+ * The grid and the households are NOT defined here. They are read straight out
+ * of the engine's data files, which are the single source of truth:
  *
- * Keep this deterministic. The pitch depends on the same numbers appearing
- * every run.
+ *   services/engine/data/grid.json        nodes + edges
+ *   services/engine/data/households.json  meters, panel sizes, archetypes
+ *
+ * Copying them into a second list is how the DB and the matcher end up
+ * disagreeing about node ids at 3am. Everything below adds only what the engine
+ * has no opinion about: the DISCOM and regulator accounts, wallet addresses,
+ * and the verified beneficiary registry.
  *
  *   npm run db:seed --workspace=@sunshare/web
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { PrismaClient, Role, GridNodeKind, BeneficiaryKind } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-/** Gandhinagar — matches DEMO_LAT/DEMO_LNG in shared constants. */
-const ORIGIN = { lat: 23.2156, lng: 72.6369 };
+const ENGINE_DATA = join(__dirname, '../../../services/engine/data');
 
-/**
- * Edge lengths are derived from node coordinates rather than hand-written, so
- * the line losses the matcher computes can never contradict what the map draws.
- */
-function haversineKm(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number },
-): number {
-  const R = 6371;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return Math.round(2 * R * Math.asin(Math.sqrt(h)) * 1000) / 1000;
+const readJson = <T>(file: string): T =>
+  JSON.parse(readFileSync(join(ENGINE_DATA, file), 'utf8')) as T;
+
+interface GridNodeJson {
+  id: string;
+  kind: GridNodeKind;
+  name: string;
+  lat: number;
+  lng: number;
+  parentId: string | null;
+  capacityKw: number;
+  loadKw: number;
 }
+
+interface GridEdgeJson {
+  id: string;
+  fromNodeId: string;
+  toNodeId: string;
+  lengthKm: number;
+  capacityKw: number;
+  currentLoadKw: number;
+}
+
+interface HouseholdJson {
+  meterId: string;
+  userId: string;
+  nodeId: string;
+  name: string;
+  panelKw: number;
+  archetype: string;
+  role: 'PROSUMER' | 'CONSUMER';
+  kind: 'RESIDENTIAL' | 'COMMERCIAL' | 'COMMUNITY';
+}
+
+const { nodes, edges } = readJson<{ nodes: GridNodeJson[]; edges: GridEdgeJson[] }>(
+  'grid.json',
+);
+const { households } = readJson<{ households: HouseholdJson[] }>('households.json');
 
 /** Hardhat's well-known test accounts — public by design, never funded on mainnet. */
 const WALLETS = [
@@ -50,112 +76,58 @@ const WALLETS = [
   '0xBcd4042DE499D14e55001CcbB24a551F3b954096',
   '0x71bE63f3384f5fb98995898A86B02Fb2426c5788',
   '0xFABB0ac9d68B0B445fB7357272Ff202C5651694a',
+  '0x1CBd3b2770909D4e10f157cABC84C7264073C9Ec',
+  '0xdF3e18d64BC6A983f673Ab319CCaE4f1a57C7097',
+  '0xcd3B766CCDd6AE721141F452C550Ca635964ce71',
+  '0x2546BcD3c84621e976D8185a91A922aE77ECEc30',
 ];
 
-type NodeSeed = {
-  id: string;
-  kind: GridNodeKind;
-  name: string;
-  lat: number;
-  lng: number;
-  parentId: string | null;
-  capacityKw: number;
-};
+/** Account 0 deployed the contracts, so it is already the escrow's DISCOM. */
+const DISCOM_WALLET = WALLETS[0];
+const REGULATOR_WALLET = WALLETS[13];
 
-const NODES: NodeSeed[] = [
-  {
-    id: 'SUB-1',
-    kind: GridNodeKind.SUBSTATION,
-    name: 'Sector 21 Substation',
-    lat: ORIGIN.lat,
-    lng: ORIGIN.lng,
-    parentId: null,
-    capacityKw: 2000,
-  },
-  {
-    id: 'FDR-A',
-    kind: GridNodeKind.FEEDER,
-    name: 'Feeder A — Sector 21',
-    lat: 23.2178,
-    lng: 72.6341,
-    parentId: 'SUB-1',
-    capacityKw: 150,
-  },
-  {
-    id: 'FDR-B',
-    kind: GridNodeKind.FEEDER,
-    name: 'Feeder B — Sector 22',
-    lat: 23.2131,
-    lng: 72.6402,
-    parentId: 'SUB-1',
-    capacityKw: 150,
-  },
-
-  { id: 'H-A1', kind: GridNodeKind.HOUSE, name: '12 Sunflower Row', lat: 23.2189, lng: 72.6323, parentId: 'FDR-A', capacityKw: 15 },
-  { id: 'H-A2', kind: GridNodeKind.HOUSE, name: '14 Sunflower Row', lat: 23.2195, lng: 72.6352, parentId: 'FDR-A', capacityKw: 15 },
-  { id: 'H-A3', kind: GridNodeKind.HOUSE, name: '3 Neem Lane', lat: 23.2172, lng: 72.6318, parentId: 'FDR-A', capacityKw: 15 },
-  { id: 'H-A4', kind: GridNodeKind.HOUSE, name: '7 Neem Lane', lat: 23.2201, lng: 72.6338, parentId: 'FDR-A', capacityKw: 15 },
-  { id: 'H-B1', kind: GridNodeKind.HOUSE, name: '21 Banyan Cross', lat: 23.2118, lng: 72.6421, parentId: 'FDR-B', capacityKw: 15 },
-  { id: 'H-B2', kind: GridNodeKind.HOUSE, name: '23 Banyan Cross', lat: 23.2142, lng: 72.6433, parentId: 'FDR-B', capacityKw: 15 },
-  { id: 'H-B3', kind: GridNodeKind.HOUSE, name: '5 Peepal Street', lat: 23.2105, lng: 72.6395, parentId: 'FDR-B', capacityKw: 15 },
-  { id: 'H-B4', kind: GridNodeKind.HOUSE, name: '9 Peepal Street', lat: 23.2126, lng: 72.6448, parentId: 'FDR-B', capacityKw: 15 },
-
-  { id: 'BEN-1', kind: GridNodeKind.HOUSE, name: 'Sector 21 Primary School', lat: 23.2183, lng: 72.6361, parentId: 'FDR-A', capacityKw: 25 },
-  { id: 'BEN-2', kind: GridNodeKind.HOUSE, name: 'Sector 22 Street Lighting', lat: 23.2137, lng: 72.6412, parentId: 'FDR-B', capacityKw: 10 },
-  { id: 'BEN-3', kind: GridNodeKind.HOUSE, name: 'Sector 22 Community Clinic', lat: 23.2112, lng: 72.6440, parentId: 'FDR-B', capacityKw: 20 },
-];
-
-type UserSeed = {
-  id: string;
-  name: string;
-  role: Role;
-  nodeId: string | null;
-  wallet: string;
-  /** Present for the eight metered houses, absent for DISCOM/regulator. */
-  meter?: { id: string; panelKw: number; archetype: string };
-};
+const rootSubstation = nodes.find((n) => n.parentId === null)!;
 
 /**
- * Archetype names are set here because the seed lands before Dev's simulator.
- * `consumption_kw(archetype, ...)` must accept exactly this set.
+ * The engine models generation and consumption, not charity, so the registry
+ * lives only here. Anchored to real nodes so donations have somewhere to go on
+ * the map: the school from the household data, streetlights at a feeder (where
+ * they physically connect), and one consumer household.
  */
-const USERS: UserSeed[] = [
-  { id: 'usr-aarti', name: 'Aarti Shah', role: Role.PROSUMER, nodeId: 'H-A1', wallet: WALLETS[0], meter: { id: 'mtr-a1', panelKw: 8.0, archetype: 'FAMILY_4' } },
-  { id: 'usr-prakash', name: 'Prakash Joshi', role: Role.PROSUMER, nodeId: 'H-A2', wallet: WALLETS[1], meter: { id: 'mtr-a2', panelKw: 5.5, archetype: 'FAMILY_6' } },
-  { id: 'usr-meera', name: 'Meera Desai', role: Role.PROSUMER, nodeId: 'H-A3', wallet: WALLETS[2], meter: { id: 'mtr-a3', panelKw: 3.2, archetype: 'COUPLE_2' } },
-  { id: 'usr-ramesh', name: 'Ramesh Patel', role: Role.CONSUMER, nodeId: 'H-A4', wallet: WALLETS[3], meter: { id: 'mtr-a4', panelKw: 0, archetype: 'SENIOR_2' } },
-  { id: 'usr-kavita', name: 'Kavita Trivedi', role: Role.PROSUMER, nodeId: 'H-B1', wallet: WALLETS[4], meter: { id: 'mtr-b1', panelKw: 6.4, archetype: 'WFH_3' } },
-  { id: 'usr-nikhil', name: 'Nikhil Mehta', role: Role.CONSUMER, nodeId: 'H-B2', wallet: WALLETS[5], meter: { id: 'mtr-b2', panelKw: 0, archetype: 'FAMILY_4' } },
-  { id: 'usr-sanjay', name: 'Sanjay Bhatt', role: Role.CONSUMER, nodeId: 'H-B3', wallet: WALLETS[6], meter: { id: 'mtr-b3', panelKw: 0, archetype: 'STUDENT_1' } },
-  { id: 'usr-divya', name: 'Divya Raval', role: Role.PROSUMER, nodeId: 'H-B4', wallet: WALLETS[7], meter: { id: 'mtr-b4', panelKw: 4.1, archetype: 'COUPLE_2' } },
-
-  { id: 'usr-discom', name: 'GUVNL Operations', role: Role.DISCOM, nodeId: 'SUB-1', wallet: WALLETS[8] },
-  { id: 'usr-regulator', name: 'GERC Regulator', role: Role.REGULATOR, nodeId: null, wallet: WALLETS[9] },
-];
-
 const BENEFICIARIES = [
-  { id: 'ben-school', name: 'Sector 21 Primary School', kind: BeneficiaryKind.SCHOOL, nodeId: 'BEN-1', wallet: WALLETS[10] },
-  { id: 'ben-streetlight', name: 'Sector 22 Street Lighting', kind: BeneficiaryKind.STREETLIGHT, nodeId: 'BEN-2', wallet: WALLETS[11] },
-  { id: 'ben-clinic', name: 'Sector 22 Community Clinic', kind: BeneficiaryKind.CLINIC, nodeId: 'BEN-3', wallet: WALLETS[12] },
+  {
+    id: 'ben-school',
+    kind: BeneficiaryKind.SCHOOL,
+    nodeId: households.find((h) => h.kind === 'COMMUNITY')?.nodeId ?? 'H-03',
+    name: households.find((h) => h.kind === 'COMMUNITY')?.name ?? 'Primary School',
+    wallet: WALLETS[14],
+  },
+  {
+    id: 'ben-streetlight',
+    kind: BeneficiaryKind.STREETLIGHT,
+    nodeId: nodes.find((n) => n.kind === GridNodeKind.FEEDER)!.id,
+    name: 'Sector 21 Street Lighting',
+    wallet: WALLETS[15],
+  },
+  {
+    id: 'ben-household',
+    kind: BeneficiaryKind.HOUSEHOLD,
+    nodeId: households.find((h) => h.role === 'CONSUMER' && h.kind === 'RESIDENTIAL')!.nodeId,
+    name: 'Supported Household',
+    wallet: WALLETS[16],
+  },
 ];
 
-function nodeById(id: string): NodeSeed {
-  const node = NODES.find((n) => n.id === id);
-  if (!node) throw new Error(`unknown node ${id}`);
-  return node;
+/** Parents must exist before children; SS-2 hangs off SS-1, so kind is not enough. */
+function byDepth(node: GridNodeJson, index: Map<string, GridNodeJson>): number {
+  let depth = 0;
+  let current = node;
+  while (current.parentId) {
+    current = index.get(current.parentId)!;
+    depth += 1;
+  }
+  return depth;
 }
-
-/** One edge per parent link; the distribution network is a radial tree. */
-const EDGES = NODES.filter((n) => n.parentId !== null).map((child) => {
-  const parent = nodeById(child.parentId!);
-  return {
-    id: `E-${parent.id}-${child.id}`,
-    fromNodeId: parent.id,
-    toNodeId: child.id,
-    lengthKm: haversineKm(parent, child),
-    capacityKw: child.capacityKw,
-  };
-});
 
 async function wipe() {
   await prisma.pushSubscription.deleteMany();
@@ -174,48 +146,91 @@ async function wipe() {
   await prisma.beneficiary.deleteMany();
   await prisma.user.deleteMany();
   await prisma.gridEdge.deleteMany();
-  // Self-referencing tree: children must go before their parents.
-  await prisma.gridNode.deleteMany({ where: { kind: GridNodeKind.HOUSE } });
-  await prisma.gridNode.deleteMany({ where: { kind: GridNodeKind.FEEDER } });
-  await prisma.gridNode.deleteMany({ where: { kind: GridNodeKind.SUBSTATION } });
+
+  // Clears whatever topology is already there, not just the nodes about to be
+  // written — an earlier seed with different ids would otherwise be left
+  // orphaned in the table. Peels leaves so children always go before parents.
+  for (;;) {
+    const remaining = await prisma.gridNode.findMany({
+      select: { id: true, parentId: true },
+    });
+    if (remaining.length === 0) break;
+
+    const parents = new Set(remaining.map((n) => n.parentId).filter(Boolean));
+    const leaves = remaining.filter((n) => !parents.has(n.id)).map((n) => n.id);
+    if (leaves.length === 0) {
+      throw new Error('grid node parent cycle — cannot clear');
+    }
+
+    await prisma.gridNode.deleteMany({ where: { id: { in: leaves } } });
+  }
 }
 
 async function main() {
   await wipe();
 
-  for (const kind of [GridNodeKind.SUBSTATION, GridNodeKind.FEEDER, GridNodeKind.HOUSE]) {
-    await prisma.gridNode.createMany({
-      data: NODES.filter((n) => n.kind === kind).map(({ id, name, lat, lng, parentId, capacityKw }) => ({
-        id,
-        kind,
-        name,
-        lat,
-        lng,
-        parentId,
-        capacityKw,
-      })),
+  const index = new Map(nodes.map((n) => [n.id, n]));
+  const shallowestFirst = [...nodes].sort((a, b) => byDepth(a, index) - byDepth(b, index));
+  for (const node of shallowestFirst) {
+    await prisma.gridNode.create({
+      data: {
+        id: node.id,
+        kind: node.kind,
+        name: node.name,
+        lat: node.lat,
+        lng: node.lng,
+        parentId: node.parentId,
+        capacityKw: node.capacityKw,
+        loadKw: node.loadKw,
+      },
     });
   }
 
-  await prisma.gridEdge.createMany({ data: EDGES });
-
-  await prisma.user.createMany({
-    data: USERS.map(({ id, name, role, nodeId, wallet }) => ({
-      id,
-      name,
-      role,
-      nodeId,
-      walletAddress: wallet,
+  await prisma.gridEdge.createMany({
+    data: edges.map((e) => ({
+      id: e.id,
+      fromNodeId: e.fromNodeId,
+      toNodeId: e.toNodeId,
+      lengthKm: e.lengthKm,
+      capacityKw: e.capacityKw,
+      currentLoadKw: e.currentLoadKw,
     })),
   });
 
+  await prisma.user.createMany({
+    data: [
+      ...households.map((h, i) => ({
+        id: h.userId,
+        name: h.name,
+        role: h.role === 'PROSUMER' ? Role.PROSUMER : Role.CONSUMER,
+        nodeId: h.nodeId,
+        // Account 0 is the relayer/DISCOM, so households start at 1.
+        walletAddress: WALLETS[i + 1],
+      })),
+      {
+        id: 'usr-discom',
+        name: 'GUVNL Operations',
+        role: Role.DISCOM,
+        nodeId: rootSubstation.id,
+        walletAddress: DISCOM_WALLET,
+      },
+      {
+        id: 'usr-regulator',
+        name: 'GERC Regulator',
+        role: Role.REGULATOR,
+        nodeId: null,
+        walletAddress: REGULATOR_WALLET,
+      },
+    ],
+  });
+
   await prisma.meter.createMany({
-    data: USERS.filter((u) => u.meter).map((u) => ({
-      id: u.meter!.id,
-      userId: u.id,
-      nodeId: u.nodeId!,
-      panelKw: u.meter!.panelKw,
-      archetype: u.meter!.archetype,
+    data: households.map((h) => ({
+      id: h.meterId,
+      userId: h.userId,
+      nodeId: h.nodeId,
+      panelKw: h.panelKw,
+      archetype: h.archetype,
     })),
   });
 
@@ -230,13 +245,14 @@ async function main() {
     })),
   });
 
-  const totalPanelKw = USERS.reduce((sum, u) => sum + (u.meter?.panelKw ?? 0), 0);
+  const totalPanelKw = households.reduce((sum, h) => sum + h.panelKw, 0);
+  const prosumers = households.filter((h) => h.role === 'PROSUMER').length;
+
   console.log(
     [
-      `nodes         ${NODES.length} (1 substation, 2 feeders, ${NODES.filter((n) => n.kind === GridNodeKind.HOUSE).length} connection points)`,
-      `edges         ${EDGES.length}`,
-      `users         ${USERS.length} across all four roles`,
-      `meters        ${USERS.filter((u) => u.meter).length}, ${totalPanelKw.toFixed(1)} kW of rooftop solar`,
+      `grid          ${nodes.length} nodes, ${edges.length} edges (from the engine's grid.json)`,
+      `users         ${households.length + 2} across all four roles`,
+      `meters        ${households.length}, ${totalPanelKw.toFixed(1)} kW across ${prosumers} prosumers`,
       `beneficiaries ${BENEFICIARIES.length}`,
     ].join('\n'),
   );
