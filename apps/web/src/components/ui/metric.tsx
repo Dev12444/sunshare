@@ -101,6 +101,8 @@ export function DataRow({
   tone?: Tone;
 }) {
   return (
+    // A div is valid inside a dl and keeps the grouping to the caller, which
+    // is where it belongs — several callers render many rows as one list.
     <div className="data-row">
       <dt className="shrink-0 text-xs text-ink-3">{label}</dt>
       <dd

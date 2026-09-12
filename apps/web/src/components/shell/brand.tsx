@@ -76,7 +76,10 @@ export function Wordmark({
     <span
       className={[
         'font-semibold tracking-[-0.02em]',
-        tone === 'onDark' ? 'text-forest-ink' : 'text-forest',
+        // Forest green is the reference's wordmark colour and works on paper,
+        // but it is 1.48:1 against the dark shell — so the default tone flips
+        // with the theme. onDark is for the rail, which is green either way.
+        tone === 'onDark' ? 'text-forest-ink' : 'text-forest dark:text-forest-ink',
         className ?? '',
       ].join(' ')}
     >

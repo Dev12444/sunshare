@@ -43,17 +43,30 @@ export function ListingForm({
   const pricePaise = Math.round(Number(price) * 100);
   const verdict = corridorVerdict(pricePaise, t);
 
+  /**
+   * The ceiling is frozen when the composer opens.
+   *
+   * availableKwh is surplus x time left in the slot, so it falls every second.
+   * Validating against the live figure made the form unusable: "use all"
+   * filled 0.36, a second later only 0.29 was available, and Review stayed
+   * disabled forever — there was no value a person could type fast enough to
+   * keep. The offer is for this slot, and delivered energy is metered
+   * separately from contracted energy, so committing against the figure you
+   * were shown is both usable and honest.
+   */
+  const [ceilingKwh] = useState(availableKwh);
+
   const error = useMemo(() => {
     if (!Number.isFinite(kwhValue) || kwhValue <= 0) return 'Enter the energy you want to offer.';
-    if (kwhValue > availableKwh + 0.001)
-      return `Only ${fmtKwh(availableKwh)} kWh of surplus is available this slot.`;
+    if (kwhValue > ceilingKwh + 0.001)
+      return `Only ${fmtKwh(ceilingKwh)} kWh of surplus was available when you opened this form.`;
     if (!Number.isFinite(pricePaise) || pricePaise <= 0) return 'Enter an ask price.';
     if (verdict === 'BELOW_FLOOR')
       return `Below the ${rupees(t.feedInTariffPaise)} feed-in floor — you would earn more exporting to the DISCOM.`;
     if (verdict === 'ABOVE_CEILING')
       return `Above the ${rupees(t.retailTariffPaise)} retail ceiling — no buyer can clear at this price.`;
     return null;
-  }, [kwhValue, availableKwh, pricePaise, verdict, t]);
+  }, [kwhValue, ceilingKwh, pricePaise, verdict, t]);
 
   const net = Math.round(kwhValue * (pricePaise - t.wheelingChargePaise));
   const gross = Math.round(kwhValue * pricePaise);
@@ -154,14 +167,13 @@ export function ListingForm({
           label="Energy"
           htmlFor="listing-kwh"
           hint={
-            // Available surplus falls as the slot runs down, so the number the
-            // form opened with can go stale while it is being filled in.
+            // Frozen at open — see ceilingKwh above.
             <button
               type="button"
-              onClick={() => setEnergy((Math.floor(availableKwh * 100) / 100).toFixed(2))}
+              onClick={() => setEnergy((Math.floor(ceilingKwh * 100) / 100).toFixed(2))}
               className="underline decoration-rule/40 underline-offset-2 hover:text-ink hover:decoration-ink"
             >
-              {fmtKwh(availableKwh)} kWh available — use all
+              {fmtKwh(ceilingKwh)} kWh available — use all
             </button>
           }
         >

@@ -126,6 +126,7 @@ export function AccountView() {
         <Panel>
           <PanelHead title="Connection" meta="From the network" />
           <PanelBody className="space-y-0">
+            <dl>
             <DataRow label="Account">{user.id}</DataRow>
             <DataRow label="Role">{ROLE_LABEL[role]}</DataRow>
             <DataRow label="Meter">{household?.meterId ?? BLANK}</DataRow>
@@ -137,12 +138,14 @@ export function AccountView() {
             <DataRow label="Meter state" tone={reading ? 'up' : 'neutral'}>
               {reading ? 'Reading' : 'No readings'}
             </DataRow>
+            </dl>
           </PanelBody>
         </Panel>
 
         <Panel>
           <PanelHead title="Solar" meta="From the network" />
           <PanelBody className="space-y-0">
+            <dl>
             <DataRow label="Panel rating">
               {household ? `${household.panelKw} kW` : BLANK}
             </DataRow>
@@ -160,12 +163,14 @@ export function AccountView() {
                 ? `${user.walletAddress.slice(0, 10)}…${user.walletAddress.slice(-6)}`
                 : BLANK}
             </DataRow>
+            </dl>
           </PanelBody>
         </Panel>
 
         <Panel>
           <PanelHead title="Property" meta={profile ? 'Declared' : 'Not provided yet'} />
           <PanelBody className="space-y-0">
+            <dl>
             {editing && draft ? (
               <>
                 <Edit label="Address" value={draft.property.line1} onChange={(v) => setDraft({ ...draft, property: { ...draft.property, line1: v } })} />
@@ -182,12 +187,14 @@ export function AccountView() {
                 <DataRow label="Property type">{show(p?.property.propertyType)}</DataRow>
               </>
             )}
+            </dl>
           </PanelBody>
         </Panel>
 
         <Panel>
           <PanelHead title="Supply and trading" meta={profile ? 'Declared' : 'Not provided yet'} />
           <PanelBody className="space-y-0">
+            <dl>
             {editing && draft ? (
               <>
                 <Edit label="Distribution utility" value={draft.electricity.discom} onChange={(v) => setDraft({ ...draft, electricity: { ...draft.electricity, discom: v } })} />
@@ -218,6 +225,7 @@ export function AccountView() {
                 </DataRow>
               </>
             )}
+            </dl>
           </PanelBody>
         </Panel>
       </div>

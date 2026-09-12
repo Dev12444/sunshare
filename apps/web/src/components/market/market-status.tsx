@@ -53,6 +53,7 @@ export function MarketStatus({
 
   return (
     <PanelBody className="space-y-0">
+      <dl>
       <DataRow label="Current slot">{hhmm(market.slotStartSim)}–{hhmm(market.slotEndSim)}</DataRow>
       <DataRow label="Next slot">{hhmm(market.slotEndSim)}–{plusSlot(market.slotEndSim)}</DataRow>
       <DataRow label={cleared ? 'Clearing price' : 'Indicative price'} tone={cleared ? 'up' : 'neutral'}>
@@ -67,6 +68,7 @@ export function MarketStatus({
       <DataRow label="Traded volume">
         {lastVolumeKwh === null ? 'Awaiting clear' : `${kwh(lastVolumeKwh)} kWh`}
       </DataRow>
+      </dl>
     </PanelBody>
   );
 }
