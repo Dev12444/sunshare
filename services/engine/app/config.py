@@ -80,6 +80,13 @@ SIM_SPEED = float(os.getenv("SIM_SPEED", "1"))
 SIM_SEED = int(os.getenv("SIM_SEED", "2026"))
 SIM_TICK_SECONDS = float(os.getenv("SIM_TICK_SECONDS", "1.0"))
 
+# The simulated hour a fresh process opens at. 6.0 keeps the local default:
+# a demo run starts just before sunrise and the audience watches generation
+# climb from zero. A hosted instance wants something else — a free dyno sleeps
+# when idle, so every cold visitor would otherwise arrive at a dark 06:00 with
+# every tile reading zero. Fractional hours are allowed (11.5 == 11:30).
+SIM_START_HOUR = float(os.getenv("SIM_START_HOUR", "6"))
+
 DEMO_LAT = float(os.getenv("DEMO_LAT", "23.2156"))   # Gandhinagar, Gujarat
 DEMO_LNG = float(os.getenv("DEMO_LNG", "72.6369"))
 DEMO_TZ_OFFSET_HOURS = 5.5

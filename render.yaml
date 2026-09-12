@@ -19,6 +19,10 @@ services:
         value: "1"
       - key: SIM_SEED
         value: "2026"
+      # A free instance sleeps when idle; opening at midday means a cold
+      # visitor arrives to a live dashboard rather than a dark 06:00.
+      - key: SIM_START_HOUR
+        value: "11"
       - key: DEMO_LAT
         value: "23.2156"
       - key: DEMO_LNG

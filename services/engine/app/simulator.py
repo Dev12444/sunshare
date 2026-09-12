@@ -174,11 +174,18 @@ class Simulator:
         self.grid = GridIndex(load_topology())
         self.households = json.loads((DATA_DIR / "households.json").read_text())["households"]
 
-        # Start at 06:00 IST so a demo run opens just before sunrise and the
-        # audience watches generation climb from zero.
+        # Start at SIM_START_HOUR (06:00 by default) so a demo run opens just
+        # before sunrise and the audience watches generation climb from zero.
+        # A hosted instance overrides it, because a cold start at dawn shows a
+        # visitor nothing but zeros.
         if start_sim is None:
-            today = datetime.now(IST).replace(hour=6, minute=0, second=0, microsecond=0)
-            start_sim = today
+            hour = config.SIM_START_HOUR
+            start_sim = datetime.now(IST).replace(
+                hour=int(hour) % 24,
+                minute=int((hour % 1) * 60),
+                second=0,
+                microsecond=0,
+            )
         self.sim_time = start_sim
 
         self.seq = 0

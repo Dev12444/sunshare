@@ -254,3 +254,23 @@ def test_live_weather_never_dictates_irradiance(monkeypatch):
     # dominate: a real dawn reading cannot flatten a simulated noon.
     assert total > 8.0, f"live irradiance leaked into the simulated clock: {total} kW"
     assert tick.weather.irradiance_wm2 > 700, "irradiance is not the geometric value"
+
+
+def test_start_hour_defaults_to_dawn_and_honours_the_override(monkeypatch):
+    """A hosted instance must be able to open somewhere other than 06:00.
+
+    A free dyno sleeps when idle, so without this every cold visitor arrives
+    at a dark 06:00 with every tile reading zero.
+    """
+    from app import config
+    from app.simulator import Simulator
+
+    assert Simulator().sim_time.hour == 6
+
+    monkeypatch.setattr(config, "SIM_START_HOUR", 11.5)
+    started = Simulator().sim_time
+    assert (started.hour, started.minute) == (11, 30)
+
+    # Wraps rather than raising, so a bad value cannot stop the engine booting.
+    monkeypatch.setattr(config, "SIM_START_HOUR", 24.0)
+    assert Simulator().sim_time.hour == 0
