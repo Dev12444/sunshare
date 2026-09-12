@@ -86,6 +86,15 @@ const WALLETS = [
 const DISCOM_WALLET = WALLETS[0];
 const REGULATOR_WALLET = WALLETS[13];
 
+/**
+ * The two oversight accounts follow the same U-* convention as the households,
+ * because the frontend's role switcher posts these ids to /api/session. Naming
+ * them anything else makes two of the four demo roles 404 the moment mocks are
+ * turned off.
+ */
+const DISCOM_ID = 'U-DIS';
+const REGULATOR_ID = 'U-REG';
+
 const rootSubstation = nodes.find((n) => n.parentId === null)!;
 
 /**
@@ -208,14 +217,14 @@ async function main() {
         walletAddress: WALLETS[i + 1],
       })),
       {
-        id: 'usr-discom',
+        id: DISCOM_ID,
         name: 'GUVNL Operations',
         role: Role.DISCOM,
         nodeId: rootSubstation.id,
         walletAddress: DISCOM_WALLET,
       },
       {
-        id: 'usr-regulator',
+        id: REGULATOR_ID,
         name: 'GERC Regulator',
         role: Role.REGULATOR,
         nodeId: null,
@@ -241,7 +250,7 @@ async function main() {
       kind: b.kind,
       nodeId: b.nodeId,
       walletAddress: b.wallet,
-      verifiedBy: 'usr-discom',
+      verifiedBy: DISCOM_ID,
     })),
   });
 
