@@ -170,6 +170,7 @@ export function ImpactView() {
   return (
     <div className="space-y-4">
       <PageHead
+        stage="IMPACT"
         title="Impact"
         subtitle="Emissions avoided and network losses saved by matching energy locally instead of importing it"
         aside={

@@ -51,10 +51,17 @@ export function SolarDayChart({
       consumptionAhead: d.minute >= nowMinute ? d.consumptionKw : null,
     }));
     const peak = data.reduce((m, d) => Math.max(m, d.generationKw, d.consumptionKw), 0);
-    const current = data.reduce(
-      (best, d) => (Math.abs(d.minute - nowMinute) < Math.abs(best.minute - nowMinute) ? d : best),
-      data[0],
-    );
+    // data[0] is the seed, so an empty series reduces to undefined rather than
+    // throwing here — it throws later at current.clock. The DISCOM screen
+    // prerenders before the store has any readings, which is exactly that
+    // case, so the markers below are guarded instead of assumed.
+    const current = data.length
+      ? data.reduce(
+          (best, d) =>
+            Math.abs(d.minute - nowMinute) < Math.abs(best.minute - nowMinute) ? d : best,
+          data[0],
+        )
+      : undefined;
     return { series, peak, current };
   }, [data, nowMinute]);
 
@@ -77,13 +84,15 @@ export function SolarDayChart({
             <CartesianGrid stroke={theme.ink3} strokeOpacity={0.14} vertical={false} />
 
             {/* The part of the day that has not happened yet. */}
-            <ReferenceArea
-              x1={current.clock}
-              x2={series[series.length - 1]?.clock}
-              fill={theme.ink3}
-              fillOpacity={0.05}
-              strokeOpacity={0}
-            />
+            {current && (
+              <ReferenceArea
+                x1={current.clock}
+                x2={series[series.length - 1]?.clock}
+                fill={theme.ink3}
+                fillOpacity={0.05}
+                strokeOpacity={0}
+              />
+            )}
 
             <XAxis
               dataKey="clock"
@@ -148,7 +157,7 @@ export function SolarDayChart({
             ) : null}
 
             <ReferenceLine
-              x={current.clock}
+              x={current?.clock}
               stroke={theme.ink}
               strokeWidth={1}
               label={{
@@ -197,7 +206,9 @@ export function SolarDayChart({
         />
         <span className="sr-only">
           {ariaLabel ??
-            `Solar day curve. At ${nowClock} generation is ${kw(current.generationKw)} kilowatts and consumption is ${kw(current.consumptionKw)} kilowatts.`}
+            (current
+              ? `Solar day curve. At ${nowClock} generation is ${kw(current.generationKw)} kilowatts and consumption is ${kw(current.consumptionKw)} kilowatts.`
+              : 'Solar day curve. No readings for this day yet.')}
         </span>
       </figcaption>
     </figure>

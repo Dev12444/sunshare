@@ -153,6 +153,7 @@ export function CommunityView() {
   return (
     <div className="space-y-4">
       <PageHead
+        stage="IMPACT"
         title="Community Pool"
         subtitle="A configured share of each cleared sale is routed to verified local beneficiaries"
         aside={

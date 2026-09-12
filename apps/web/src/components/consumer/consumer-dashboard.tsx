@@ -71,6 +71,7 @@ export function ConsumerDashboard() {
   return (
     <div className="space-y-4">
       <PageHead
+        stage="SURPLUS"
         title={fullName(user.id)}
         subtitle={
           reading

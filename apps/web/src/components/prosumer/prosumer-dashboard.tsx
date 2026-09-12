@@ -63,6 +63,7 @@ export function ProsumerDashboard() {
   return (
     <div className="space-y-4">
       <PageHead
+        stage="GENERATE"
         title={fullName(user.id)}
         subtitle={
           reading

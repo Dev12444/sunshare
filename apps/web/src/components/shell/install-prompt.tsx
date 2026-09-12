@@ -80,6 +80,16 @@ export function ServiceWorkerRegistrar() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
     if (process.env.NODE_ENV !== 'production') return;
+
+    // MSW registers /mockServiceWorker.js at scope '/' and this registers
+    // /sw.js at the same scope. A second register() with a different script
+    // does not add a worker, it replaces the registration — so in a production
+    // build with mocks on (how the demo actually ships) whichever call lands
+    // last silently wins, and it is a race between AppShell's effect and this
+    // one. Mock mode gives the scope to MSW; the offline view reads the
+    // IndexedDB snapshot (lib/offline-store) and needs no worker either way.
+    if (process.env.NEXT_PUBLIC_USE_MOCKS === 'true') return;
+
     navigator.serviceWorker.register('/sw.js').catch(() => {
       // Registration failure only costs offline support, never the live app.
     });
