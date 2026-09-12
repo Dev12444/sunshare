@@ -258,6 +258,10 @@ async def build_policy(
 
 # ------------------------------------------------------------- fallback ---
 
+# How far under the indicative market price an urgent seller posts. Small on
+# purpose: enough to be the cheaper option, not enough to give away the spread.
+UNDERCUT_PAISE = 10
+
 _RUPEE = re.compile(r"(?:₹|rs\.?|inr)?\s*(\d+(?:\.\d+)?)\s*(?:rupees?|rs)?", re.I)
 
 # A number followed by an energy or time unit is a quantity, not a price.
@@ -417,15 +421,28 @@ def execute(
     span = policy.max_price_paise - policy.min_price_paise
 
     if policy.objective == "SELL_FAST":
-        # Walk the ask down from max toward min as the sun goes. Urgency
-        # steepens the descent; the floor is never crossed.
+        # Undercut the market, then walk down towards the floor as the deadline
+        # approaches. Urgency steepens the descent; the floor is never crossed.
+        #
+        # The anchor MUST be the market, not policy.max_price_paise. That
+        # ceiling is whatever the model inferred from the user's words, and it
+        # is normally the retail tariff -- an ask pinned there costs the buyer
+        # exactly what the grid costs, so it never clears. Anchoring on the
+        # ceiling made SELL_FAST the slowest-selling objective we have, and
+        # priced it ABOVE MAX_PROFIT, which is incoherent on its face.
         remaining = max(0.0, min(1.0, minutes_to_sunset / 240.0))
         decay = (1.0 - remaining) ** (1.0 + 2.0 * policy.urgency)
-        target = int(round(policy.max_price_paise - span * decay))
+        anchor = min(
+            policy.max_price_paise,
+            market.indicative_price_paise - UNDERCUT_PAISE,
+        )
+        anchor = max(anchor, policy.min_price_paise)
+        target = int(round(anchor - (anchor - policy.min_price_paise) * decay))
         reason = (
             f"{minutes_to_sunset:.0f} min of daylight left and you asked me to sell "
-            f"before sunset, so I moved the ask to ₹{target / 100:.2f} to clear "
-            f"{sellable:.2f} kWh."
+            f"before sunset, so I undercut the "
+            f"₹{market.indicative_price_paise / 100:.2f} market at "
+            f"₹{target / 100:.2f} to clear {sellable:.2f} kWh."
         )
 
     elif policy.objective == "MAX_PROFIT":

@@ -317,3 +317,81 @@ def test_good_openai_response_is_accepted(monkeypatch):
     assert p.min_price_paise == 450
     assert p.max_price_paise == 620
     assert p.reserve_kwh == 1.5
+
+
+# ------------------------------------------------- objective coherence ---
+#
+# These pin the PRICE TRAJECTORY, not just the parsed objective. The suite
+# previously asserted that "sell fast" produced objective == "SELL_FAST" and
+# stopped there -- so it stayed green while the executor priced that policy at
+# the retail ceiling, where no buyer can ever prefer it to the grid. An
+# objective is only correct if the number it produces is.
+
+
+def _pol(objective: str, lo: int, hi: int, urgency: float = 1.0):
+    return _policy_from_fields(
+        "U-01", "goal",
+        {
+            "objective": objective, "minPricePaise": lo, "maxPricePaise": hi,
+            "urgency": urgency, "reserveKwh": 0.0, "communityDonationPct": 0,
+            "rationale": "test",
+        },
+        T, "llm", datetime.now().isoformat(),
+    )
+
+
+# 405 min is the midday demo beat; 20 min is the last slot before sunset.
+DAY = [(405, 387), (300, 390), (240, 400), (180, 450), (120, 520), (60, 590), (20, 620)]
+
+
+@pytest.mark.parametrize("mins,price", DAY)
+def test_sell_fast_never_asks_above_the_market(mins, price):
+    """An urgent seller must undercut the market, or it is not selling fast.
+
+    Pinned to the policy ceiling (usually the retail tariff) the ask costs the
+    buyer exactly what the grid costs, so it never clears.
+    """
+    d = execute(_pol("SELL_FAST", FLOOR, CEIL), _reading(), _market(price),
+                None, mins, 10.0, T)
+    assert d.to_price_paise is not None
+    assert d.to_price_paise <= price, (
+        f"SELL_FAST asked {d.to_price_paise}p into a {price}p market"
+    )
+
+
+@pytest.mark.parametrize("mins,price", DAY)
+def test_sell_fast_is_never_dearer_than_max_profit(mins, price):
+    """The urgent seller must not outprice the one who said it could wait."""
+    fast = execute(_pol("SELL_FAST", FLOOR, CEIL), _reading(), _market(price),
+                   None, mins, 10.0, T)
+    slow = execute(_pol("MAX_PROFIT", FLOOR, CEIL, urgency=0.0), _reading(),
+                   _market(price), None, mins, 10.0, T)
+    assert fast.to_price_paise <= slow.to_price_paise
+
+
+@pytest.mark.parametrize("mins,price", DAY)
+def test_sell_fast_respects_a_floor_above_the_market(mins, price):
+    """A stated floor outranks the urge to clear -- we never sell below it."""
+    d = execute(_pol("SELL_FAST", 450, CEIL), _reading(), _market(price),
+                None, mins, 10.0, T)
+    assert d.to_price_paise >= 450
+
+
+def test_sell_fast_concedes_as_sunset_approaches():
+    """Monotonic descent: later in the day is never a higher ask."""
+    prices = [
+        execute(_pol("SELL_FAST", FLOOR, CEIL), _reading(), _market(500),
+                None, mins, 10.0, T).to_price_paise
+        for mins in (400, 300, 200, 120, 60, 20)
+    ]
+    assert prices == sorted(prices, reverse=True), prices
+    assert prices[-1] < prices[0]
+
+
+@pytest.mark.parametrize("objective", ["SELL_FAST", "MAX_PROFIT", "BEAT_GRID", "MAX_COMMUNITY"])
+@pytest.mark.parametrize("mins,price", DAY)
+def test_every_objective_stays_inside_the_corridor(objective, mins, price):
+    d = execute(_pol(objective, FLOOR, CEIL), _reading(), _market(price),
+                None, mins, 10.0, T)
+    if d.to_price_paise is not None:
+        assert FLOOR <= d.to_price_paise <= CEIL
