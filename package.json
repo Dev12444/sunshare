@@ -2,7 +2,8 @@
   "name": "sunshare",
   "version": "0.1.0",
   "private": true,
-  "description": "P2P rooftop-solar trading marketplace — HackOut'26, Team Null Pointers",
+  "description": "P2P rooftop-solar trading marketplace \u2014 HackOut'26, Team Null Pointers",
+  "license": "MIT",
   "workspaces": [
     "apps/*",
     "packages/*",

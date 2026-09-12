@@ -20,6 +20,8 @@ All **DELIVERED** and covered by 106 tests. Base URL `http://localhost:8000`.
 | GET | `/carbon/{userId}?local_kwh=` | `CarbonSummary` | ✅ |
 | GET | `/grid/topology` | `GridTopology` | ✅ |
 | POST | `/sim/control` | `{ speed?, jumpToHour?, congestEdge?, clearCongestion? }` | ✅ |
+| GET | `/sim/scenario` | `{ beats[] }` — the scripted demo beats, in order | ✅ |
+| POST | `/sim/scenario` | `{ beat }` — jump to one named demo beat; 404 if unknown | ✅ |
 
 **Rahi — two things that will bite otherwise:**
 

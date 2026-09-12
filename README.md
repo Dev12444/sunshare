@@ -140,3 +140,9 @@ be tamper-evident: the per-slot order-book commitment and the settlement.
 > in the UI. Re-derive them against the actual state DISCOM tariff order before
 > any use beyond the hackathon. All meter data is **simulated** — nothing here
 > is presented as live utility data.
+
+---
+
+## License
+
+[MIT](./LICENSE) © 2026 Team Null Pointers.
