@@ -3,6 +3,13 @@
 **Peer-to-peer rooftop solar marketplace** — HackOut'26, Team **Null Pointers**.
 Theme: Renewable Energy Intelligence.
 
+**▶ Live demo: https://sunshare-web.onrender.com** · engine:
+[`/health`](https://sunshare-engine.onrender.com/health)
+
+> Both run on Render's free plan and sleep after ~15 minutes idle — the first
+> request takes ~30s to wake them. Sign in with any of the four demo accounts
+> below; no password is checked.
+
 Surplus rooftop solar is exported to the grid at a low feed-in tariff while the
 neighbour two houses away pays a high retail tariff for the same electricity.
 SunShare closes that gap: a local marketplace that matches surplus to nearby

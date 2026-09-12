@@ -1,16 +1,39 @@
 # Deploy — Rahi, H19–H21
 
-Four pieces: Neon (database), Render (engine), Vercel (web), Polygon Amoy
-(chain). Do them in that order — each one produces a value the next needs.
+## Live deployment
+
+| Piece | Where | URL |
+|---|---|---|
+| Web (Next.js) | Render, Singapore | https://sunshare-web.onrender.com |
+| Engine (FastAPI) | Render, Singapore | https://sunshare-engine.onrender.com |
+| Database | Neon, `aws-ap-southeast-1` | project `sunshare` (`blue-wildflower-55611473`) |
+| Chain | not deployed | settlement records `mode: "simulated"` |
+
+Both services run Render's free plan and **sleep after ~15 minutes idle**; the
+first request then takes ~30s to wake them. Hit the engine's `/health` a few
+minutes before demoing. `SIM_START_HOUR=11` on the engine so a cold visitor
+arrives at a live midday market rather than a dark 06:00.
+
+The AI broker runs its rule-based parser, which is a supported mode — set
+`ANTHROPIC_API_KEY` on `sunshare-engine` to enable the LLM path.
+
+Both services auto-deploy on every push to `main`.
+
+## Deploying it yourself
+
+Four pieces: Neon (database), Render (engine), Render or Vercel (web), Polygon
+Amoy (chain). Do them in that order — each one produces a value the next needs.
 
 The local-chain fallback means step 4 can be skipped entirely and the demo
 still settles; see the cut-list. Skipping it costs a real explorer link, not a
 working product.
 
-## 1. Neon — already live
+## 1. Neon — database
 
-Project `sunshare` (`divine-hill-57221033`, `aws-ap-southeast-1`). The
-`DATABASE_URL` is the pooled connection string from the Neon console.
+Project `sunshare` (`blue-wildflower-55611473`, `aws-ap-southeast-1`). The
+`DATABASE_URL` is the pooled connection string from the Neon console. Use the
+**direct** (non-pooled) host for `db push` — Prisma runs DDL, which pgbouncer
+will not carry.
 
 ```bash
 npm run db:push --workspace=@sunshare/web
