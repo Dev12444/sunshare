@@ -25,7 +25,7 @@ import type {
 import { CO2_AVOIDED_PER_KWH, DEFAULT_TARIFF } from '@sunshare/shared';
 import { prisma } from './prisma';
 import { publish } from './bus';
-import { currentSlot, ensureCurrentSlot } from './slot';
+import { currentSlot, ensureCurrentSlot, type SlotWindow } from './slot';
 import { settleTrade } from './settlement';
 import { tradeMoney } from './money';
 import { snapshotReadings } from './readings';
@@ -81,8 +81,52 @@ function congestionIndexOf(grid: GridTopology): number {
   return utilisations.length ? Math.min(1, Math.max(...utilisations)) : 0;
 }
 
-export async function runSlot(): Promise<SlotRunResult> {
-  const slot = await ensureCurrentSlot();
+/**
+ * Which slot to trade.
+ *
+ * The sim clock advances by `speed x real_seconds`, so at SIM_SPEED 60 a real
+ * second is a sim hour and a 15-minute slot is gone in a quarter of a second.
+ * Even at speed 1 a slot lasts 15 real seconds — less time than it takes a
+ * person to list, switch role, bid, and hit run. Matching only ever the current
+ * slot therefore strands perfectly good orders in a window that just closed.
+ *
+ * So: trade the caller's slot if they named one, else the current slot when it
+ * has a book, else the most recent slot that actually has one.
+ */
+async function resolveSlot(explicitSlotId?: string): Promise<SlotWindow> {
+  if (explicitSlotId) {
+    const row = await prisma.marketSlot.findUnique({ where: { id: explicitSlotId } });
+    if (!row) throw new Error(`unknown slot ${explicitSlotId}`);
+    return { id: row.id, startSim: row.startSim, endSim: row.endSim };
+  }
+
+  const current = await ensureCurrentSlot();
+
+  const [listings, bids] = await Promise.all([
+    prisma.listing.count({ where: { slotId: current.id, status: 'OPEN' } }),
+    prisma.bid.count({ where: { slotId: current.id, status: 'OPEN' } }),
+  ]);
+  if (listings > 0 && bids > 0) return current;
+
+  const tradable = await prisma.marketSlot.findFirst({
+    where: {
+      listings: { some: { status: 'OPEN' } },
+      bids: { some: { status: 'OPEN' } },
+    },
+    orderBy: { startSim: 'desc' },
+  });
+
+  if (!tradable) return current;
+
+  if (tradable.id !== current.id) {
+    console.warn(`current slot ${current.id} has no book; trading ${tradable.id} instead`);
+  }
+
+  return { id: tradable.id, startSim: tradable.startSim, endSim: tradable.endSim };
+}
+
+export async function runSlot(explicitSlotId?: string): Promise<SlotRunResult> {
+  const slot = await resolveSlot(explicitSlotId);
 
   // Taken before matching so day-generation totals reflect the book being
   // matched, which is what the pool's donation thresholds are measured against.
