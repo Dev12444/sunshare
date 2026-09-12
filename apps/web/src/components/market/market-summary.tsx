@@ -47,7 +47,6 @@ export function MarketSummary({
           unit="/kWh"
           size="lg"
           tone="solar"
-          flash={price}
           hint={
             cleared
               ? `Slot ${slotRange(market.slotId)} · uniform price`

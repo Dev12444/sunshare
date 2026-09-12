@@ -70,6 +70,7 @@ export function BrokerView() {
   return (
     <div className="space-y-4">
       <PageHead
+        stage="MATCH"
         title="Energy Broker"
         subtitle="A goal in plain language becomes a constrained policy. A deterministic executor trades against it."
         aside={
@@ -111,7 +112,6 @@ export function BrokerView() {
                 value={rupees(marketPrice)}
                 unit="/kWh"
                 tone="solar"
-                flash={marketPrice}
                 hint={clearing ? 'Last cleared slot' : 'Indicative'}
               />
             </MetricCell>

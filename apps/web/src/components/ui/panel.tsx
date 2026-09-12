@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { LifecycleRail, type LifecycleStage } from '@/components/ui/lifecycle-rail';
 
 /**
  * A panel is a bordered region of the page, not a floating card. No shadow, no
@@ -76,18 +77,26 @@ export function PageHead({
   title,
   subtitle,
   aside,
+  stage,
 }: {
   title: string;
   subtitle?: ReactNode;
   aside?: ReactNode;
+  /** Where this screen sits in the energy lifecycle. Omit for operator views. */
+  stage?: LifecycleStage;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-rule/[.13] pb-3">
-      <div className="min-w-0">
-        <h1 className="text-lg font-semibold tracking-[-0.01em] text-ink">{title}</h1>
-        {subtitle ? <p className="mt-0.5 text-sm text-ink-3">{subtitle}</p> : null}
+    <div className="border-b border-rule/[.13] pb-3">
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+        <div className="min-w-0">
+          <h1 className="text-lg font-semibold tracking-[-0.01em] text-ink">{title}</h1>
+          {subtitle ? <p className="mt-0.5 text-sm text-ink-3">{subtitle}</p> : null}
+        </div>
+        {aside ? <div className="flex items-center gap-4">{aside}</div> : null}
       </div>
-      {aside ? <div className="flex items-center gap-4">{aside}</div> : null}
+      {/* Its own row: every aside already carries page-specific controls, and
+          the rail has to read the same on all of them to work as a signature. */}
+      {stage ? <LifecycleRail current={stage} className="mt-2.5" /> : null}
     </div>
   );
 }

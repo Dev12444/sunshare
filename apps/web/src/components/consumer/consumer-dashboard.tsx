@@ -71,6 +71,7 @@ export function ConsumerDashboard() {
   return (
     <div className="space-y-4">
       <PageHead
+        stage="SURPLUS"
         title={fullName(user.id)}
         subtitle={
           reading
@@ -94,7 +95,6 @@ export function ConsumerDashboard() {
                   value={kwh(reading.consumptionKw)}
                   unit="kW"
                   tone="mains"
-                  flash={reading.consumptionKw}
                   hint={`${kwh(shortfallKwh)} kWh this slot`}
                 />
               </MetricCell>
@@ -120,7 +120,6 @@ export function ConsumerDashboard() {
                   value={rupees(clearing ?? market?.indicativePricePaise ?? 0)}
                   unit="/kWh"
                   tone="solar"
-                  flash={clearing ?? undefined}
                   hint={clearing ? 'Last cleared slot' : 'Indicative'}
                 />
               </MetricCell>

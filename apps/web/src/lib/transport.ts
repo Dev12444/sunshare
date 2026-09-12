@@ -18,13 +18,18 @@ import {
   type Bid,
   type Listing,
   type MarketState,
+  type MatchPair,
   type ServerEvent,
+  type SettlementReceipt,
   type Tick,
   type TradeRecord,
 } from '@sunshare/shared';
 import { rupees } from '@/lib/format';
 import { loadSnapshot, saveSnapshot } from '@/lib/offline-store';
-import { displayName } from '@/lib/seed';
+import { HOUSEHOLD_BY_USER, displayName } from '@/lib/seed';
+import { pathBetween, pathLengthKm } from '@/lib/mock/grid-path';
+import type { TradeWithSettlement } from '@/app/api/trades/route';
+import type { ClearedSlot } from '@/app/api/slots/route';
 import {
   DAY_END_MIN,
   DAY_START_MIN,
@@ -38,6 +43,7 @@ import {
   simIso,
   slotIndexFor,
   tickAt,
+  type SettledSlot,
 } from '@/lib/mock/market-engine';
 import { evaluate } from '@/lib/mock/broker';
 import {
@@ -567,6 +573,11 @@ let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 function startLive() {
   setState({ connection: 'connecting' });
+  // Registry and history first: the socket only carries what happens from now
+  // on, so without the backfill a refresh mid-session loses the whole day and
+  // every chart restarts empty.
+  void loadMeterRegistry();
+  void backfillHistory();
   openSocket();
   openEvents();
   void pollRest();
@@ -620,6 +631,158 @@ function scheduleReconnect() {
   retryDelay = Math.min(retryDelay * 2, 15000);
 }
 
+/**
+ * Installed capacity and market role per user.
+ *
+ * A Tick carries readings, not registry facts, so neither of these can be
+ * inferred from it. panelKw used to be hardcoded to 0 — which made every
+ * "x% of capacity" read as either zero or infinity — and role was guessed from
+ * the sign of surplusKw, which reclassifies every prosumer as a consumer after
+ * sunset and whenever a cloud passes. Both come from the registry instead:
+ * GET /api/meters when the platform is up, falling back to the seed the
+ * database itself is built from, so the two can never disagree.
+ */
+type MeterRole = 'PROSUMER' | 'CONSUMER';
+
+const meterRegistry = new Map<string, { panelKw: number; role: MeterRole }>();
+
+function meterProfile(userId: string): { panelKw: number; role: MeterRole } {
+  const live = meterRegistry.get(userId);
+  if (live) return live;
+  const household = HOUSEHOLD_BY_USER.get(userId);
+  return { panelKw: household?.panelKw ?? 0, role: household?.role ?? 'CONSUMER' };
+}
+
+/* ------------------------------------------------------- history backfill */
+
+/**
+ * Rebuild the day's cleared slots from the platform so history survives a
+ * refresh. The live stream only carries what happens after you connect, so
+ * without this every chart and the whole ledger start empty on reload.
+ *
+ * GET /api/slots gives the cleared slots oldest-first (price, volume, CO2);
+ * GET /api/trades gives the settled trades with their receipts. What neither
+ * returns is the order book, so `orders` stays empty and the unmatched and
+ * grid-backfill totals stay at zero rather than being guessed — a slot
+ * reconstructed from history genuinely does not know what went unfilled.
+ *
+ * The match pairs are derived, not invented: seller, buyer, contracted and
+ * delivered energy come straight off the trade, and the route and distance
+ * come from the real topology via pathBetween(), which is the same graph the
+ * matcher walked.
+ */
+async function backfillHistory(): Promise<void> {
+  const [slotsRes, tradesRes] = await Promise.allSettled([
+    fetch('/api/slots?limit=96').then((r) => (r.ok ? (r.json() as Promise<ClearedSlot[]>) : [])),
+    fetch('/api/trades?limit=500').then((r) =>
+      r.ok ? (r.json() as Promise<TradeWithSettlement[]>) : [],
+    ),
+  ]);
+
+  const slots = slotsRes.status === 'fulfilled' && Array.isArray(slotsRes.value) ? slotsRes.value : [];
+  if (slots.length === 0) return;
+
+  const trades =
+    tradesRes.status === 'fulfilled' && Array.isArray(tradesRes.value) ? tradesRes.value : [];
+
+  const tradesBySlot = new Map<string, TradeWithSettlement[]>();
+  for (const trade of trades) {
+    const bucket = tradesBySlot.get(trade.slotId);
+    if (bucket) bucket.push(trade);
+    else tradesBySlot.set(trade.slotId, [trade]);
+  }
+
+  const history: SettledSlot[] = slots.map((slot) => {
+    const slotTrades = tradesBySlot.get(slot.slotId) ?? [];
+    const pairs: MatchPair[] = slotTrades.map((t) => {
+      const from = HOUSEHOLD_BY_USER.get(t.sellerId)?.nodeId;
+      const to = HOUSEHOLD_BY_USER.get(t.buyerId)?.nodeId;
+      const path = from && to ? pathBetween(from, to) : [];
+      return {
+        // The book is not part of trade history; these identify orders that
+        // this response does not carry.
+        listingId: '',
+        bidId: '',
+        sellerId: t.sellerId,
+        buyerId: t.buyerId,
+        kwh: t.kwh,
+        deliveredKwh: t.deliveredKwh,
+        lossKwh: Math.max(0, t.kwh - t.deliveredKwh),
+        distanceKm: pathLengthKm(path),
+        efficiencyPct: t.efficiencyPct,
+        pathNodeIds: path,
+        // Folded into the clearing price at match time and not recoverable
+        // from the settled trade.
+        congestionPenaltyPaise: 0,
+      };
+    });
+
+    const totalMatchedKwh = pairs.reduce((s, p) => s + p.kwh, 0);
+    const totalDeliveredKwh = pairs.reduce((s, p) => s + p.deliveredKwh, 0);
+
+    return {
+      slotIndex: slotIndexFor(clockMinutes(slot.startSim)),
+      slotId: slot.slotId,
+      orders: { slotId: slot.slotId, slotIndex: slotIndexFor(clockMinutes(slot.startSim)), listings: [], bids: [] },
+      match: {
+        slotId: slot.slotId,
+        clearingPricePaise: slot.clearingPricePaise,
+        pairs,
+        totalMatchedKwh,
+        totalDeliveredKwh,
+        totalLossKwh: Math.max(0, totalMatchedKwh - totalDeliveredKwh),
+        avgEfficiencyPct:
+          totalMatchedKwh > 0 ? (totalDeliveredKwh / totalMatchedKwh) * 100 : 100,
+        unmatchedSupplyKwh: 0,
+        unmatchedDemandKwh: 0,
+        gridBackfillKwh: 0,
+        // Reconstructed from settled trades rather than produced by a solver
+        // run in this session, so there is no compute time to report.
+        computeMs: 0,
+        algorithm: 'mcmf',
+      },
+      trades: slotTrades,
+      receipts: slotTrades
+        .map((t) => t.settlement)
+        .filter((r): r is SettlementReceipt => r !== null),
+      donations: [],
+      volumeKwh: slot.volumeKwh,
+      clearingPricePaise: slot.clearingPricePaise,
+    };
+  });
+
+  // Only seed history that the live stream has not already built up.
+  if (getState().history.length > 0) return;
+  setState({ history });
+}
+
+/** Registry entry from GET /api/meters (see that route's MeterEntry). */
+interface MeterRegistryEntry {
+  userId: string;
+  panelKw: number;
+}
+
+async function loadMeterRegistry(): Promise<void> {
+  try {
+    const res = await fetch('/api/meters');
+    if (!res.ok) return;
+    const entries = (await res.json()) as MeterRegistryEntry[];
+    if (!Array.isArray(entries)) return;
+    for (const entry of entries) {
+      if (typeof entry?.userId !== 'string' || typeof entry.panelKw !== 'number') continue;
+      // Role is not a meter property; it follows from whether the premises can
+      // generate at all, which is what the seed encodes.
+      const household = HOUSEHOLD_BY_USER.get(entry.userId);
+      meterRegistry.set(entry.userId, {
+        panelKw: entry.panelKw,
+        role: household?.role ?? (entry.panelKw > 0 ? 'PROSUMER' : 'CONSUMER'),
+      });
+    }
+  } catch {
+    // Registry unavailable — meterProfile falls back to the seed.
+  }
+}
+
 function ingestTick(tick: Tick) {
   const minutes = clockMinutes(tick.tsSim);
   const slotIndex = slotIndexFor(minutes);
@@ -628,13 +791,16 @@ function ingestTick(tick: Tick) {
     market: tick.market,
     simMinutes: minutes,
     speed: tick.speed,
-    readings: tick.meters.map((m) => ({
-      ...m,
-      name: displayName(m.userId),
-      shortName: displayName(m.userId),
-      panelKw: 0,
-      role: m.surplusKw > 0 ? ('PROSUMER' as const) : ('CONSUMER' as const),
-    })),
+    readings: tick.meters.map((m) => {
+      const profile = meterProfile(m.userId);
+      return {
+        ...m,
+        name: displayName(m.userId),
+        shortName: displayName(m.userId),
+        panelKw: profile.panelKw,
+        role: profile.role,
+      };
+    }),
     connection: 'live',
     lastSyncSim: tick.tsSim,
     fromCache: false,

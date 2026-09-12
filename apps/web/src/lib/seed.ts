@@ -170,7 +170,7 @@ export const ROLE_SUBTITLE: Record<Role, string> = {
 
 export const BENEFICIARIES: Beneficiary[] = [
   {
-    id: 'B-01',
+    id: 'ben-school',
     name: 'Sector 21 Primary School',
     kind: 'SCHOOL',
     nodeId: 'H-03',
@@ -179,31 +179,22 @@ export const BENEFICIARIES: Beneficiary[] = [
     verifiedAt: '2026-08-14T10:20:00+05:30',
   },
   {
-    id: 'B-02',
-    name: 'Feeder 2 Streetlight Circuit',
+    id: 'ben-streetlight',
+    name: 'Sector 21 Street Lighting',
     kind: 'STREETLIGHT',
-    nodeId: 'F-2',
+    nodeId: 'F-1',
     walletAddress: '0x8B1d3F5a7C9e1B3d5F7a9C1e3B5d7F9a1C3e5B77',
     verifiedBy: 'Sector 21 Distribution',
     verifiedAt: '2026-08-14T10:34:00+05:30',
   },
   {
-    id: 'B-03',
-    name: 'Bhatt Flat — subsidised connection',
+    id: 'ben-household',
+    name: 'Supported Household',
     kind: 'HOUSEHOLD',
-    nodeId: 'H-09',
+    nodeId: 'H-06',
     walletAddress: '0x2F4b6D8a0C2e4B6d8F0a2C4e6B8d0F2a4C6e8B99',
     verifiedBy: 'Ward 7 Welfare Office',
     verifiedAt: '2026-08-21T16:05:00+05:30',
-  },
-  {
-    id: 'B-04',
-    name: 'Sector 21 Urban Health Centre',
-    kind: 'CLINIC',
-    nodeId: 'F-1',
-    walletAddress: '0x6D8f0A2c4E6b8D0f2A4c6E8b0D2f4A6c8E0b2D33',
-    verifiedBy: 'District Health Office',
-    verifiedAt: '2026-09-02T09:12:00+05:30',
   },
 ];
 

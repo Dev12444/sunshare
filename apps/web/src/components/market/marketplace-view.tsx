@@ -82,6 +82,7 @@ export function MarketplaceView() {
   return (
     <div className="space-y-4">
       <PageHead
+        stage="MARKET"
         title="Marketplace"
         subtitle="Sector 21 local energy market · uniform-price double auction on 15-minute slots"
         aside={
@@ -103,7 +104,6 @@ export function MarketplaceView() {
               unit="/kWh"
               tone="solar"
               size="lg"
-              flash={clearing ?? undefined}
               hint={clearing ? 'Last cleared slot' : 'Indicative — no slot cleared yet'}
             />
           </MetricCell>

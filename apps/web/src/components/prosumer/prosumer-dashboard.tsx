@@ -6,6 +6,9 @@ import type { TradeRecord } from '@sunshare/shared';
 import { SolarDayChart, SurplusStrip } from '@/components/charts/solar-day-chart';
 import { PriceChart } from '@/components/charts/price-chart';
 import { CorridorNote, MarketSummary } from '@/components/market/market-summary';
+import { MarketStatus } from '@/components/market/market-status';
+import { LifecycleBand, type StageValue } from '@/components/ui/lifecycle-band';
+import type { LifecycleStage } from '@/components/ui/lifecycle-rail';
 import { ListingForm } from '@/components/market/order-forms';
 import { TradeReceipt } from '@/components/market/trade-receipt';
 import { TradeTable } from '@/components/market/trade-table';
@@ -23,6 +26,7 @@ import { allReceipts, setState, useStore } from '@/lib/store';
 import { useDayLedger, useDaySeries, useMyReading, useTariff } from '@/hooks/use-derived';
 import { useRoleSurface } from '@/hooks/use-role-surface';
 import { InstallPrompt } from '@/components/shell/install-prompt';
+import { HeroBanner } from './hero-banner';
 
 /**
  * Prosumer overview.
@@ -60,9 +64,69 @@ export function ProsumerDashboard() {
   const availableKwh = Math.max(0, surplusKw) * Math.max(remainingHours, 0.05);
   const price = market?.lastClearingPricePaise ?? market?.indicativePricePaise ?? 0;
 
+  /* ----------------------------------------------------- derived for panels */
+
+  /** The live slot has not cleared, so volume can only come from the last one. */
+  const lastVolumeKwh = history.length > 0 ? history[history.length - 1].volumeKwh : null;
+
+  /** My trades in the current slot — what "matched" and "settled" mean to me. */
+  const slotTrades = ledger.trades.filter((t) => t.slotId === market?.slotId);
+  const settledInSlot = slotTrades.filter((t) => t.status === 'SETTLED');
+
+  /**
+   * Where this household actually is in the lifecycle. Read backwards from the
+   * furthest thing that has happened: settled beats matched, matched beats
+   * listed, and with nothing listed you are still deciding whether to.
+   */
+  const lifecycleStage: LifecycleStage =
+    settledInSlot.length > 0
+      ? 'IMPACT'
+      : slotTrades.length > 0
+        ? 'SETTLE'
+        : activeListing
+          ? 'MARKET'
+          : availableKwh >= 0.05
+            ? 'SURPLUS'
+            : 'GENERATE';
+
+  /**
+   * Left three stages are instantaneous, right three are cumulative for the
+   * day, and each unit says which. Scoping match/settle to the *open* slot was
+   * the first cut and it showed an em dash almost always — the current slot has
+   * by definition not cleared yet, so the band read as empty on a day with
+   * seventeen completed trades behind it.
+   */
+  const lifecycleValues: Partial<Record<LifecycleStage, StageValue>> = {
+    GENERATE: { value: reading ? kwh(reading.generationKw) : null, unit: 'kW now' },
+    SURPLUS: { value: surplusKw > 0 ? kwh(surplusKw) : null, unit: 'kW now' },
+    MARKET: { value: market ? rupees(price) : null, unit: '/kWh' },
+    MATCH: {
+      value: ledger.trades.length > 0 ? String(ledger.trades.length) : null,
+      unit: ledger.trades.length === 1 ? 'trade today' : 'trades today',
+    },
+    SETTLE: {
+      value: ledger.revenuePaise > 0 ? rupees(ledger.revenuePaise) : null,
+      unit: 'today',
+    },
+    IMPACT: { value: ledger.co2Kg > 0 ? kgCo2(ledger.co2Kg) : null, unit: 'today' },
+  };
+
   return (
     <div className="space-y-4">
+      {/* The reference opens on a solar band before any figure. It earns the
+          space by carrying the greeting, the simulated clock and live output —
+          the three things you check before deciding whether to read on. */}
+      <HeroBanner
+        name={fullName(user.id)}
+        subtitle={
+          reading
+            ? `${reading.panelKw} kW rooftop · ${feederOf(reading.nodeId)} · ${substationOf(reading.nodeId)}`
+            : 'Rooftop premises'
+        }
+      />
+
       <PageHead
+        stage="GENERATE"
         title={fullName(user.id)}
         subtitle={
           reading
@@ -92,7 +156,6 @@ export function ProsumerDashboard() {
                   value={kwh(reading.generationKw)}
                   unit="kW"
                   tone="solar"
-                  flash={reading.generationKw}
                   hint={`${kwh(reading.dayGenerationKwh)} kWh today`}
                 />
               </MetricCell>
@@ -102,7 +165,6 @@ export function ProsumerDashboard() {
                   value={kwh(reading.consumptionKw)}
                   unit="kW"
                   tone="mains"
-                  flash={reading.consumptionKw}
                   hint="Household load"
                 />
               </MetricCell>
@@ -112,7 +174,6 @@ export function ProsumerDashboard() {
                   value={kwh(Math.abs(surplusKw))}
                   unit="kW"
                   tone={surplusKw >= 0 ? 'up' : 'down'}
-                  flash={surplusKw}
                   hint={surplusKw >= 0 ? `${kwh(availableKwh)} kWh this slot` : 'Importing'}
                 />
               </MetricCell>
@@ -146,6 +207,12 @@ export function ProsumerDashboard() {
             )
           )}
         </MetricRow>
+      </Panel>
+
+      {/* The lifecycle, with what each stage is actually worth right now. */}
+      <Panel>
+        <PanelHead title="Energy lifecycle" meta="Live premises state" />
+        <LifecycleBand current={lifecycleStage} values={lifecycleValues} />
       </Panel>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -209,8 +276,15 @@ export function ProsumerDashboard() {
 
         <div className="min-w-0 space-y-4">
           <Panel>
-            <PanelHead title="Market" meta={market ? `Slot ${market.slotId.slice(11)}` : undefined} />
-            <MarketSummary market={market} tariff={tariff} />
+            <PanelHead
+              title="Market status"
+              meta={market ? (market.lastClearingPricePaise !== null ? 'Cleared' : 'Open') : undefined}
+            />
+            {market ? (
+              <MarketStatus market={market} tariff={tariff} lastVolumeKwh={lastVolumeKwh} />
+            ) : (
+              <MarketSummary market={market} tariff={tariff} />
+            )}
           </Panel>
 
           <Panel>

@@ -180,6 +180,7 @@ export function LedgerView() {
   return (
     <div className="space-y-4">
       <PageHead
+        stage="SETTLE"
         title="Ledger"
         subtitle="Every matched, delivered and settled trade on the simulated day"
         aside={

@@ -161,7 +161,6 @@ export function DiscomView() {
               value={kwh(generation)}
               unit="kW"
               tone="solar"
-              flash={generation}
               hint="Metered rooftop output"
             />
           </MetricCell>
@@ -171,7 +170,6 @@ export function DiscomView() {
               value={kwh(demand)}
               unit="kW"
               tone="mains"
-              flash={demand}
               hint="Metered premises only"
             />
           </MetricCell>

@@ -19,7 +19,22 @@ const SPEEDS = [1, 4, 12];
  * Deliberately quiet: they belong to the person driving the demo, not to the
  * product. They sit at the foot of the rail at the same weight as a footnote.
  */
-export function SimControls({ className, layout = 'stack' }: { className?: string; layout?: 'stack' | 'row' }) {
+/**
+ * `tone` exists because this control lives in two different surfaces: the
+ * mobile sheet on paper, and the navigation rail, which is deep green in both
+ * themes. Ink tokens invert with the theme and would be invisible on the rail,
+ * so the dark tone uses the rail's own palette instead.
+ */
+export function SimControls({
+  className,
+  layout = 'stack',
+  tone = 'light',
+}: {
+  className?: string;
+  layout?: 'stack' | 'row';
+  tone?: 'light' | 'dark';
+}) {
+  const dark = tone === 'dark';
   const playing = useStore((s) => s.playing);
   const speed = useStore((s) => s.speed);
   const mocked = useStore((s) => s.mocked);
@@ -29,15 +44,17 @@ export function SimControls({ className, layout = 'stack' }: { className?: strin
   return (
     <div className={cn('min-w-0', className)}>
       <div className="flex items-center justify-between">
-        <span className="text-label font-semibold uppercase text-ink-3">Demo clock</span>
+        <span className={cn('text-label font-semibold uppercase', dark ? 'text-forest-ink-2/75' : 'text-ink-3')}>
+          Demo clock
+        </span>
         <div className="flex items-center gap-0.5">
-          <IconButton
+          <IconButton dark={dark}
             label={playing ? 'Pause simulation' : 'Play simulation'}
             onClick={() => setState({ playing: !playing })}
           >
             {playing ? <IconPause size={12} /> : <IconPlay size={12} />}
           </IconButton>
-          <IconButton label="Reset simulation" onClick={resetSimulation}>
+          <IconButton dark={dark} label="Reset simulation" onClick={resetSimulation}>
             <IconReset size={12} />
           </IconButton>
         </div>
@@ -50,12 +67,17 @@ export function SimControls({ className, layout = 'stack' }: { className?: strin
             type="button"
             title={j.title}
             onClick={() => jumpTo(j.minutes)}
-            className="rounded-sm border border-rule/20 px-1.5 py-0.5 font-mono text-xs tabular-nums text-ink-2 hover:bg-sunken hover:text-ink"
+            className={cn(
+              'rounded-sm border px-1.5 py-0.5 font-mono text-xs tabular-nums',
+              dark
+                ? 'border-white/15 text-forest-ink-2 hover:bg-forest-2 hover:text-forest-ink'
+                : 'border-rule/20 text-ink-2 hover:bg-sunken hover:text-ink',
+            )}
           >
             {j.label}
           </button>
         ))}
-        <span aria-hidden className="mx-0.5 w-px self-stretch bg-rule/15" />
+        <span aria-hidden className={cn('mx-0.5 w-px self-stretch', dark ? 'bg-white/15' : 'bg-rule/15')} />
         {SPEEDS.map((s) => (
           <button
             key={s}
@@ -66,8 +88,12 @@ export function SimControls({ className, layout = 'stack' }: { className?: strin
             className={cn(
               'rounded-sm border px-1.5 py-0.5 font-mono text-xs tabular-nums',
               speed === s
-                ? 'border-ink bg-ink text-paper'
-                : 'border-rule/20 text-ink-2 hover:bg-sunken hover:text-ink',
+                ? dark
+                  ? 'border-solar bg-solar text-forest'
+                  : 'border-ink bg-ink text-paper'
+                : dark
+                  ? 'border-white/15 text-forest-ink-2 hover:bg-forest-2 hover:text-forest-ink'
+                  : 'border-rule/20 text-ink-2 hover:bg-sunken hover:text-ink',
             )}
           >
             {s}×
@@ -81,10 +107,12 @@ export function SimControls({ className, layout = 'stack' }: { className?: strin
 function IconButton({
   label,
   onClick,
+  dark,
   children,
 }: {
   label: string;
   onClick: () => void;
+  dark?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -93,7 +121,12 @@ function IconButton({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="flex h-6 w-6 items-center justify-center rounded-sm text-ink-2 hover:bg-sunken hover:text-ink"
+      className={cn(
+        'flex h-6 w-6 items-center justify-center rounded-sm',
+        dark
+          ? 'text-forest-ink-2 hover:bg-forest-2 hover:text-forest-ink'
+          : 'text-ink-2 hover:bg-sunken hover:text-ink',
+      )}
     >
       {children}
     </button>

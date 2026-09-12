@@ -33,6 +33,18 @@ export const metadata: Metadata = {
   description:
     'Peer-to-peer rooftop solar trading for Sector 21, Gandhinagar. Local clearing prices, grid-aware matching and settled records.',
   manifest: '/manifest.webmanifest',
+  // Without these the document declares no icon at all: the tab renders blank,
+  // every page load 404s on /favicon.ico, and iOS "Add to Home Screen" has no
+  // apple-touch-icon to use so it falls back to a screenshot of the page. The
+  // manifest alone does not cover any of that — it is read at install time,
+  // not for the tab or the iOS shortcut.
+  icons: {
+    icon: [
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
   applicationName: 'SunShare',
   appleWebApp: { capable: true, title: 'SunShare', statusBarStyle: 'default' },
   formatDetection: { telephone: false },

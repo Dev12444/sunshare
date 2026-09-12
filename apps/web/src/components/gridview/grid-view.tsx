@@ -170,7 +170,6 @@ export function GridView() {
               value={kwh(totals.load)}
               unit="kW"
               hint={`of ${totals.capacity} kW feeder capacity`}
-              flash={totals.load}
             />
           </MetricCell>
           <MetricCell>
