@@ -43,3 +43,7 @@ contracts/typechain-types/
 
 # engine venv
 services/engine/.venv/
+
+# local agent/editor state and build artifacts
+.claude/
+*.tsbuildinfo
