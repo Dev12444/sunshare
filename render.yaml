@@ -1,0 +1,35 @@
+# Render blueprint for the FastAPI engine — Rahi, H19–H21.
+#
+# Python is pinned to 3.11 deliberately: pydantic-core has no wheel for 3.13+
+# and the source build needs a Rust toolchain, so a newer runtime fails the
+# install rather than the tests.
+services:
+  - type: web
+    name: sunshare-engine
+    runtime: python
+    plan: free
+    rootDir: services/engine
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SIM_SPEED
+        value: "1"
+      - key: SIM_SEED
+        value: "2026"
+      - key: DEMO_LAT
+        value: "23.2156"
+      - key: DEMO_LNG
+        value: "72.6369"
+      # Comma-separated; must include the deployed Vercel origin or the
+      # browser's WebSocket upgrade is rejected by CORS.
+      - key: ALLOWED_ORIGINS
+        sync: false
+      # Optional: without it the broker falls back to its rule-based parser,
+      # which is a supported mode rather than a failure.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: BROKER_MODEL
+        value: claude-sonnet-5

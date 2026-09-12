@@ -87,9 +87,8 @@ contract EnergyEscrow {
 
     /**
      * @notice Publish the Merkle root of a slot's order book before settling it.
-     * @dev TODO(Rahi, H13): called once per slot by the orchestrator.
-     *      This is cut-list item #2 — if time runs out, settle() still works
-     *      without it.
+     * @dev Called once per slot by the orchestrator, before settling. This is
+     *      cut-list item #2 — settle() works without it.
      */
     function commitSlot(uint64 slot, bytes32 merkleRoot, uint256 orderCount)
         external
