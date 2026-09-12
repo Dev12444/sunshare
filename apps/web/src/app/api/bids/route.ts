@@ -6,7 +6,7 @@ import type { Bid } from '@sunshare/shared';
 import { DEFAULT_TARIFF } from '@sunshare/shared';
 import { prisma } from '@/lib/prisma';
 import { getSessionUser } from '@/lib/session';
-import { currentSlotWindow, ensureCurrentSlot } from '@/lib/slot';
+import { currentSlot, ensureCurrentSlot } from '@/lib/slot';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +27,7 @@ function toBid(row: Row): Bid {
 
 export async function GET() {
   const rows = await prisma.bid.findMany({
-    where: { slotId: currentSlotWindow().id, status: 'OPEN' },
+    where: { slotId: (await currentSlot()).id, status: 'OPEN' },
     orderBy: { maxPricePaise: 'desc' },
   });
 

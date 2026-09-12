@@ -2,23 +2,21 @@
  * POST /api/settle — relay one matched trade to the escrow contract — Rahi, H10.5–H13.
  */
 import { NextResponse } from 'next/server';
-import { id as keccak } from 'ethers';
-import type { SettlementReceipt } from '@sunshare/shared';
-import { prisma } from '@/lib/prisma';
-import { publish } from '@/lib/bus';
-import {
-  explorerUrl,
-  isChainConfigured,
-  relaySettlement,
-  type RelayedSettlement,
-} from '@/lib/relayer';
+import { settleTrade } from '@/lib/settlement';
 
 export const dynamic = 'force-dynamic';
 
-const kwhToWh = (kwh: number) => BigInt(Math.round(kwh * 1000));
+const STATUS = {
+  UNKNOWN_TRADE: 404,
+  ALREADY_SETTLED: 409,
+  NO_WALLET: 409,
+} as const;
 
-/** uint64 slot number the contract can index by: minutes since the epoch. */
-const slotNumber = (startSim: Date) => Math.floor(startSim.getTime() / 60_000);
+const MESSAGE = {
+  UNKNOWN_TRADE: 'unknown trade',
+  ALREADY_SETTLED: 'trade is already settled',
+  NO_WALLET: 'seller or buyer has no wallet address',
+} as const;
 
 export async function POST(req: Request) {
   let tradeId: unknown;
@@ -32,99 +30,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'tradeId is required' }, { status: 400 });
   }
 
-  const trade = await prisma.trade.findUnique({
-    where: { id: tradeId },
-    include: { seller: true, buyer: true, slot: true, settlement: true },
-  });
+  const outcome = await settleTrade(tradeId);
 
-  if (!trade) {
-    return NextResponse.json({ error: 'unknown trade' }, { status: 404 });
-  }
-  if (trade.settlement) {
+  if (!outcome.ok) {
     return NextResponse.json(
-      { error: 'trade is already settled', detail: trade.settlement.txHash },
-      { status: 409 },
-    );
-  }
-  if (!trade.seller.walletAddress || !trade.buyer.walletAddress) {
-    return NextResponse.json(
-      { error: 'seller or buyer has no wallet address' },
-      { status: 409 },
+      { error: MESSAGE[outcome.code], detail: outcome.detail },
+      { status: STATUS[outcome.code] },
     );
   }
 
-  const onChainId = keccak(trade.id);
-
-  let relayed: RelayedSettlement;
-  if (isChainConfigured()) {
-    try {
-      relayed = await relaySettlement({
-        tradeId: onChainId,
-        seller: trade.seller.walletAddress,
-        buyer: trade.buyer.walletAddress,
-        contractedWh: kwhToWh(trade.kwh),
-        deliveredWh: kwhToWh(trade.deliveredKwh),
-        pricePaisePerKwh: BigInt(trade.pricePaise),
-        slot: slotNumber(trade.slot.startSim),
-      });
-    } catch (err) {
-      // The demo must survive a dead RPC: record the settlement as simulated
-      // and label it as such rather than failing the trade. Cut-list item #3.
-      console.error('relay failed, falling back to simulated', err);
-      relayed = {
-        txHash: onChainId,
-        blockNumber: 0,
-        chainId: 0,
-        gasUsed: '0',
-        mode: 'simulated',
-      };
-    }
-  } else {
-    relayed = {
-      txHash: onChainId,
-      blockNumber: 0,
-      chainId: 0,
-      gasUsed: '0',
-      mode: 'simulated',
-    };
-  }
-
-  const settlement = await prisma.$transaction(async (tx) => {
-    const created = await tx.settlement.create({
-      data: {
-        tradeId: trade.id,
-        txHash: relayed.txHash,
-        blockNumber: relayed.blockNumber,
-        chainId: relayed.chainId,
-        gasUsed: relayed.gasUsed,
-        wheelingFeePaise: trade.wheelingFeePaise,
-        explorerUrl: explorerUrl(relayed.txHash, relayed.mode),
-        mode: relayed.mode,
-      },
-    });
-
-    await tx.trade.update({
-      where: { id: trade.id },
-      data: { status: 'SETTLED' },
-    });
-
-    return created;
-  });
-
-  const receipt: SettlementReceipt = {
-    tradeId: trade.id,
-    txHash: settlement.txHash,
-    blockNumber: settlement.blockNumber,
-    chainId: settlement.chainId,
-    gasUsed: settlement.gasUsed,
-    wheelingFeePaise: settlement.wheelingFeePaise,
-    merkleRoot: settlement.merkleRoot,
-    explorerUrl: settlement.explorerUrl,
-    settledAt: settlement.settledAt.toISOString(),
-    mode: relayed.mode,
-  };
-
-  publish({ type: 'settlement', data: receipt });
-
-  return NextResponse.json(receipt, { status: 201 });
+  return NextResponse.json(outcome.receipt, { status: 201 });
 }

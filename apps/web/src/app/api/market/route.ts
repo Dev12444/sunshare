@@ -5,12 +5,12 @@ import { NextResponse } from 'next/server';
 import type { MarketState } from '@sunshare/shared';
 import { BASE_PRICE_PAISE } from '@sunshare/shared';
 import { prisma } from '@/lib/prisma';
-import { currentSlotWindow } from '@/lib/slot';
+import { currentSlot } from '@/lib/slot';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const slot = currentSlotWindow();
+  const slot = await currentSlot();
   const openInSlot = { slotId: slot.id, status: 'OPEN' } as const;
 
   const [supply, demand, lastCleared] = await Promise.all([
