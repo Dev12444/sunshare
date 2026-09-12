@@ -19,6 +19,7 @@ import type {
   Listing,
   MatchRequest,
   MatchResult,
+  MeterReading,
   TradeRecord,
 } from '@sunshare/shared';
 import { CO2_AVOIDED_PER_KWH, DEFAULT_TARIFF } from '@sunshare/shared';
@@ -27,6 +28,9 @@ import { publish } from './bus';
 import { currentSlot, ensureCurrentSlot } from './slot';
 import { settleTrade } from './settlement';
 import { tradeMoney } from './money';
+import { snapshotReadings } from './readings';
+import { awardBadges, recordCarbonForTrades } from './carbon';
+import { routeDonationsForSlot } from './community';
 
 const ENGINE = process.env.NEXT_PUBLIC_ENGINE_URL ?? 'http://localhost:8000';
 
@@ -40,6 +44,10 @@ export interface SlotRunResult {
   clearingPricePaise?: number;
   tradesCreated: number;
   tradesSettled: number;
+  donations?: number;
+  donatedKwh?: number;
+  badgesUnlocked?: number;
+  readingsCaptured?: number;
   totalDeliveredKwh?: number;
   avgEfficiencyPct?: number;
   algorithm?: MatchResult['algorithm'];
@@ -70,6 +78,15 @@ function congestionIndexOf(grid: GridTopology): number {
 
 export async function runSlot(): Promise<SlotRunResult> {
   const slot = await ensureCurrentSlot();
+
+  // Taken before matching so day-generation totals reflect the book being
+  // matched, which is what the pool's donation thresholds are measured against.
+  let readings: MeterReading[] = [];
+  try {
+    readings = await snapshotReadings(slot.startSim);
+  } catch (err) {
+    console.error('reading snapshot failed; continuing without it', err);
+  }
 
   const [listingRows, bidRows] = await Promise.all([
     prisma.listing.findMany({ where: { slotId: slot.id, status: 'OPEN' } }),
@@ -213,6 +230,8 @@ export async function runSlot(): Promise<SlotRunResult> {
       });
     }
 
+    await recordCarbonForTrades(tx, created);
+
     return created;
   });
 
@@ -246,12 +265,24 @@ export async function runSlot(): Promise<SlotRunResult> {
     else console.error(`settlement failed for ${trade.id}: ${outcome.code}`);
   }
 
+  // After settlement: donations are a share of what was actually delivered.
+  const donations = await routeDonationsForSlot(trades, readings, slot);
+
+  // Last, so a donation made this slot can unlock the community badge now
+  // rather than a slot later.
+  const participants = trades.flatMap((t) => [t.sellerId, t.buyerId]);
+  const badgesUnlocked = await awardBadges(participants);
+
   return {
     slotId: slot.id,
     matched: true,
     clearingPricePaise: price,
     tradesCreated: trades.length,
     tradesSettled,
+    donations: donations.length,
+    donatedKwh: donations.reduce((sum, d) => sum + d.kwh, 0),
+    badgesUnlocked,
+    readingsCaptured: readings.length,
     totalDeliveredKwh: result.totalDeliveredKwh,
     avgEfficiencyPct: result.avgEfficiencyPct,
     algorithm: result.algorithm,

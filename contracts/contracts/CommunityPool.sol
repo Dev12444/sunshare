@@ -97,6 +97,23 @@ contract CommunityPool {
     }
 
     /**
+     * @notice Set a donor's configuration on their behalf.
+     * @dev Households in this demo never hold a key — the platform relays for
+     *      them, exactly as it does for settlement — so `configureDonor` alone
+     *      would leave the pool permanently unreachable for real users. Gated
+     *      to the DISCOM so a third party still cannot alter someone's giving.
+     */
+    function configureDonorFor(
+        address donor,
+        uint16 donationBps,
+        uint256 dailyThresholdWh
+    ) external onlyDiscom {
+        if (donationBps > 10_000) revert InvalidBps(donationBps);
+        donors[donor] = DonorConfig(donationBps, dailyThresholdWh, donationBps > 0);
+        emit DonorConfigured(donor, donationBps, dailyThresholdWh);
+    }
+
+    /**
      * @notice Route a donation during settlement.
      * @dev Reverts unless the beneficiary is verified, and returns zero below
      *      the donor's daily threshold. The bps share is a running daily

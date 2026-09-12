@@ -9,6 +9,7 @@
  */
 import { Contract, JsonRpcProvider, Wallet } from 'ethers';
 import EnergyEscrowArtifact from '@sunshare/shared/abis/EnergyEscrow.json';
+import CommunityPoolArtifact from '@sunshare/shared/abis/CommunityPool.json';
 
 export type SettlementMode = 'onchain' | 'local' | 'simulated';
 
@@ -96,4 +97,118 @@ export function explorerUrl(txHash: string, mode: SettlementMode): string | null
 
   const base = process.env.NEXT_PUBLIC_CHAIN_EXPLORER;
   return base ? `${base}/tx/${txHash}` : null;
+}
+
+/* ------------------------------------------------------------ community pool */
+
+export function isPoolConfigured(): boolean {
+  const { rpcUrl, privateKey } = config();
+  return Boolean(rpcUrl && privateKey && process.env.COMMUNITY_POOL_ADDRESS);
+}
+
+function poolContract() {
+  const { rpcUrl, privateKey } = config();
+  const address = process.env.COMMUNITY_POOL_ADDRESS;
+
+  if (!rpcUrl || !privateKey || !address) throw new Error('community pool is not configured');
+
+  const wallet = new Wallet(privateKey, new JsonRpcProvider(rpcUrl));
+  return new Contract(address, CommunityPoolArtifact.abi, wallet);
+}
+
+export interface DonorConfig {
+  donationBps: number;
+  dailyThresholdWh: bigint;
+  active: boolean;
+}
+
+export async function readDonorConfig(donor: string): Promise<DonorConfig> {
+  const pool = poolContract();
+  const [donationBps, dailyThresholdWh, active] = await pool.donors(donor);
+
+  return { donationBps: Number(donationBps), dailyThresholdWh, active };
+}
+
+/** Households hold no key, so the DISCOM sets their giving for them. */
+export async function relayDonorConfig(
+  donor: string,
+  donationBps: number,
+  dailyThresholdWh: bigint,
+): Promise<string> {
+  return enqueue(async () => {
+    const tx = await poolContract().configureDonorFor(donor, donationBps, dailyThresholdWh);
+    const receipt = await tx.wait();
+    return receipt.hash as string;
+  });
+}
+
+export async function isBeneficiaryVerified(wallet: string): Promise<boolean> {
+  const [, , , verified] = await poolContract().beneficiaries(wallet);
+  return Boolean(verified);
+}
+
+/** Contract enum order: SCHOOL, STREETLIGHT, HOUSEHOLD, CLINIC. */
+const BENEFICIARY_KIND_INDEX: Record<string, number> = {
+  SCHOOL: 0,
+  STREETLIGHT: 1,
+  HOUSEHOLD: 2,
+  CLINIC: 3,
+};
+
+export async function relayVerifyBeneficiary(
+  wallet: string,
+  name: string,
+  kind: string,
+): Promise<string> {
+  return enqueue(async () => {
+    const tx = await poolContract().verifyBeneficiary(
+      wallet,
+      name,
+      BENEFICIARY_KIND_INDEX[kind] ?? 0,
+    );
+    const receipt = await tx.wait();
+    return receipt.hash as string;
+  });
+}
+
+export interface RelayedDonation {
+  txHash: string;
+  donatedWh: bigint;
+}
+
+/**
+ * Returns the amount the contract actually routed, read back off the Donated
+ * event rather than recomputed here — the contract caps by availableWh and by
+ * what the donor has already given today, so any local guess can disagree.
+ */
+export async function relayDonation(args: {
+  donor: string;
+  beneficiary: string;
+  dayGenerationWh: bigint;
+  availableWh: bigint;
+  slot: number;
+}): Promise<RelayedDonation> {
+  return enqueue(async () => {
+    const pool = poolContract();
+    const tx = await pool.routeDonation(
+      args.donor,
+      args.beneficiary,
+      args.dayGenerationWh,
+      args.availableWh,
+      args.slot,
+    );
+    const receipt = await tx.wait();
+
+    let donatedWh = 0n;
+    for (const log of receipt.logs) {
+      try {
+        const parsed = pool.interface.parseLog(log);
+        if (parsed?.name === 'Donated') donatedWh = parsed.args.wh as bigint;
+      } catch {
+        // Not one of ours.
+      }
+    }
+
+    return { txHash: receipt.hash as string, donatedWh };
+  });
 }

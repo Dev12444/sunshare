@@ -216,6 +216,29 @@
       "type": "function"
     },
     {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "donor",
+          "type": "address"
+        },
+        {
+          "internalType": "uint16",
+          "name": "donationBps",
+          "type": "uint16"
+        },
+        {
+          "internalType": "uint256",
+          "name": "dailyThresholdWh",
+          "type": "uint256"
+        }
+      ],
+      "name": "configureDonorFor",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "name": "discom",
       "outputs": [

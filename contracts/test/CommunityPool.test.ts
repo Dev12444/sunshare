@@ -101,6 +101,23 @@ describe('CommunityPool', () => {
     expect(beneficiary.receivedWh).to.equal(3_000);
   });
 
+  it('lets the DISCOM configure a donor who holds no key', async () => {
+    const { pool, discom, otherDonor, school } = await loadFixture(deployPool);
+
+    await pool.connect(discom).configureDonorFor(otherDonor.address, DONATION_BPS, THRESHOLD_WH);
+    await pool.routeDonation(otherDonor.address, school.address, 20_000, 5_000, SLOT);
+
+    expect(await pool.donatedTodayWh(otherDonor.address)).to.equal(1_000);
+  });
+
+  it('refuses configureDonorFor from anyone but the DISCOM', async () => {
+    const { pool, stranger, otherDonor } = await loadFixture(deployPool);
+
+    await expect(
+      pool.connect(stranger).configureDonorFor(otherDonor.address, DONATION_BPS, THRESHOLD_WH),
+    ).to.be.revertedWithCustomError(pool, 'NotDiscom');
+  });
+
   it('donates nothing for a donor who never opted in', async () => {
     const { pool, stranger, school } = await loadFixture(deployPool);
 
