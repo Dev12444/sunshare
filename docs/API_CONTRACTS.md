@@ -46,6 +46,13 @@ Worked example of a full slot is in `services/engine/README.md`.
 | POST | `/api/slot/run` | runs one slot: broker → commit → `/match` → trades → settle → donations → badges | H13 |
 | GET/POST | `/api/broker` | `BrokerPolicy` + the Agent Activity feed | H13 |
 | GET | `/api/regulator/export` | CSV, `?dataset=trades\|donations` — DISCOM/regulator only | H17 |
+| GET | `/api/trades` | `TradeRecord[]` + settlement — `?limit=&slotId=&userId=` | H17 |
+| GET | `/api/slots` | cleared slots with price, volume, CO₂ — `?limit=` | H17 |
+
+**Frontend — history does not arrive over SSE.** `/api/events` only carries what
+happens while a client is listening, so the ledger, impact page and price charts
+must backfill from `/api/trades` and `/api/slots` on mount, then subscribe.
+Without that they are empty on load and lose everything on refresh.
 | GET | `/api/carbon` | `CarbonSummary` + `Badge[]` | H17 |
 | GET/POST | `/api/community` | `Beneficiary[]`, `CommunityDonation[]` | H17 |
 | POST | `/api/push` | store subscription / send notification | H17 |
