@@ -37,6 +37,7 @@ export function useTicks(): TickState {
           setTick(t);
           setConnected(true);
           hydrated.current = true;
+          void saveSnapshot(t.market, t.meters);
         });
       });
     } else {

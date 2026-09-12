@@ -15,7 +15,41 @@
 /* Maansi: shared surface treatment for every tile on the dashboards. */
 @layer components {
   .tile {
-    @apply rounded-xl border border-black/5 bg-white/80 p-4 shadow-sm
-           backdrop-blur dark:border-white/10 dark:bg-white/5;
+    @apply rounded-md border border-black/10 bg-white p-4
+           dark:border-white/10 dark:bg-grid-800/60;
+  }
+
+  /* Diya: compact operational primitives — control-room, not SaaS-card. */
+  .figure {
+    @apply font-mono tabular-nums;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded border px-1.5 py-0.5
+           text-[11px] font-medium uppercase tracking-wide;
+  }
+
+  .chip-live {
+    @apply chip border-leaf-600/30 bg-leaf-600/10 text-leaf-600
+           dark:border-leaf-400/30 dark:text-leaf-400;
+  }
+
+  .chip-stale {
+    @apply chip border-sun-600/30 bg-sun-500/10 text-sun-600
+           dark:border-sun-400/30 dark:text-sun-400;
+  }
+
+  .chip-offline {
+    @apply chip border-congestion-critical/30 bg-congestion-critical/10
+           text-congestion-critical;
+  }
+
+  .chip-neutral {
+    @apply chip border-grid-400/30 bg-grid-400/10 text-grid-600
+           dark:text-grid-400;
+  }
+
+  .divider-row {
+    @apply border-b border-black/5 last:border-0 dark:border-white/5;
   }
 }
