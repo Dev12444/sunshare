@@ -26,7 +26,7 @@ async function main() {
   ]);
   await escrow.waitForDeployment();
 
-  const pool = await ethers.deployContract('CommunityPool');
+  const pool = await ethers.deployContract('CommunityPool', [relayer]);
   await pool.waitForDeployment();
 
   console.log('ESCROW_ADDRESS=', await escrow.getAddress());

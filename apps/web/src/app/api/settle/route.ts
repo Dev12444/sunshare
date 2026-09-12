@@ -2,6 +2,7 @@
  * POST /api/settle — relay one matched trade to the escrow contract — Rahi, H10.5–H13.
  */
 import { NextResponse } from 'next/server';
+import { getSessionUser } from '@/lib/session';
 import { settleTrade } from '@/lib/settlement';
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,13 @@ const MESSAGE = {
 } as const;
 
 export async function POST(req: Request) {
+  // This relays a real transaction and spends the relayer's gas, so it is not
+  // something an anonymous caller who found the deployed URL may trigger.
+  const user = await getSessionUser();
+  if (!user) {
+    return NextResponse.json({ error: 'no active session' }, { status: 401 });
+  }
+
   let tradeId: unknown;
   try {
     ({ tradeId } = await req.json());

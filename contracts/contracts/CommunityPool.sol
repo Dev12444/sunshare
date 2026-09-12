@@ -43,6 +43,9 @@ contract CommunityPool {
     }
 
     address public discom;
+    /// @dev The settlement relayer, mirroring EnergyEscrow. Only this address
+    ///      (or the DISCOM) may route a donation.
+    address public relayer;
     mapping(address => Beneficiary) public beneficiaries;
     address[] public beneficiaryList;
 
@@ -61,6 +64,7 @@ contract CommunityPool {
     );
 
     error NotDiscom();
+    error NotAuthorised();
     error NotVerified(address wallet);
     error InvalidBps(uint16 bps);
 
@@ -69,8 +73,14 @@ contract CommunityPool {
         _;
     }
 
-    constructor() {
+    modifier onlyRelayer() {
+        if (msg.sender != relayer && msg.sender != discom) revert NotAuthorised();
+        _;
+    }
+
+    constructor(address _relayer) {
         discom = msg.sender;
+        relayer = _relayer;
     }
 
     /// @notice Only the DISCOM/regulator can add a beneficiary.
@@ -119,7 +129,10 @@ contract CommunityPool {
      *      the donor's daily threshold. The bps share is a running daily
      *      target, topped up slot by slot and capped by availableWh.
      *
-     * Called by EnergyEscrow during settle(), not directly by users.
+     * Called by the settlement relayer, not directly by users. Without that
+     *      restriction anyone could inflate a beneficiary's received total and
+     *      burn the donor's daily target, so their real donations that day
+     *      would then route nothing.
      */
     function routeDonation(
         address donor,
@@ -127,7 +140,7 @@ contract CommunityPool {
         uint256 dayGenerationWh,
         uint256 availableWh,
         uint64 slot
-    ) external returns (uint256 donatedWh) {
+    ) external onlyRelayer returns (uint256 donatedWh) {
         if (!beneficiaries[beneficiary].verified) revert NotVerified(beneficiary);
 
         DonorConfig memory config = donors[donor];

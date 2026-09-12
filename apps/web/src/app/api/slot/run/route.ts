@@ -6,10 +6,18 @@
  */
 import { NextResponse } from 'next/server';
 import { runSlot } from '@/lib/orchestrator';
+import { getSessionUser } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
+  // Running a slot clears the market and settles every trade in it on chain,
+  // so it needs a signed-in operator rather than anyone with the URL.
+  const user = await getSessionUser();
+  if (!user) {
+    return NextResponse.json({ error: 'no active session' }, { status: 401 });
+  }
+
   // An explicit slotId lets the demo re-run a specific window; omitted, the
   // orchestrator picks the current slot or the most recent one with a book.
   let slotId: string | undefined;

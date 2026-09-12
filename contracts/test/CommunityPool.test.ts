@@ -12,7 +12,9 @@ const THRESHOLD_WH = 10_000;
 async function deployPool() {
   const [discom, donor, otherDonor, school, stranger] = await ethers.getSigners();
 
-  const pool = await ethers.deployContract('CommunityPool');
+  // The relayer is the account the orchestrator settles with; the default
+  // signer here is the DISCOM, which routeDonation also accepts.
+  const pool = await ethers.deployContract('CommunityPool', [discom.address]);
   await pool.waitForDeployment();
 
   await pool.connect(discom).verifyBeneficiary(school.address, 'Sector 21 Primary School', SCHOOL);
@@ -28,6 +30,16 @@ describe('CommunityPool', () => {
     await expect(
       pool.connect(stranger).verifyBeneficiary(stranger.address, 'Self Dealing Ltd', SCHOOL),
     ).to.be.revertedWithCustomError(pool, 'NotDiscom');
+  });
+
+  it('refuses routeDonation from anyone but the relayer or the DISCOM', async () => {
+    const { pool, donor, school, stranger } = await loadFixture(deployPool);
+
+    // Otherwise anyone could inflate a beneficiary's total and burn the
+    // donor's daily target so their real donations route nothing.
+    await expect(
+      pool.connect(stranger).routeDonation(donor.address, school.address, 20_000, 5_000, SLOT),
+    ).to.be.revertedWithCustomError(pool, 'NotAuthorised');
   });
 
   it('refuses to donate to an unverified beneficiary', async () => {

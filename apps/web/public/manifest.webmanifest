@@ -2,7 +2,7 @@
   "name": "SunShare — Local Solar Marketplace",
   "short_name": "SunShare",
   "description": "Trade surplus rooftop solar with your neighbours.",
-  "start_url": "/prosumer",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
