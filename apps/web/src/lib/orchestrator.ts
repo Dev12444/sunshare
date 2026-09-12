@@ -31,6 +31,9 @@ import { tradeMoney } from './money';
 import { snapshotReadings } from './readings';
 import { awardBadges, recordCarbonForTrades } from './carbon';
 import { routeDonationsForSlot } from './community';
+import { runBrokerForSlot } from './broker';
+import { merkleRoot } from './merkle';
+import { isChainConfigured, relaySlotCommitment } from './relayer';
 
 const ENGINE = process.env.NEXT_PUBLIC_ENGINE_URL ?? 'http://localhost:8000';
 
@@ -47,6 +50,8 @@ export interface SlotRunResult {
   donations?: number;
   donatedKwh?: number;
   badgesUnlocked?: number;
+  brokerDecisions?: number;
+  merkleRoot?: string | null;
   readingsCaptured?: number;
   totalDeliveredKwh?: number;
   avgEfficiencyPct?: number;
@@ -88,6 +93,15 @@ export async function runSlot(): Promise<SlotRunResult> {
     console.error('reading snapshot failed; continuing without it', err);
   }
 
+  // Before collecting the book, so anything the broker lists or reprices this
+  // slot is matched in the same run rather than waiting for the next one.
+  let brokerDecisions = 0;
+  try {
+    brokerDecisions = (await runBrokerForSlot(slot)).length;
+  } catch (err) {
+    console.error('broker pass failed; continuing without it', err);
+  }
+
   const [listingRows, bidRows] = await Promise.all([
     prisma.listing.findMany({ where: { slotId: slot.id, status: 'OPEN' } }),
     prisma.bid.findMany({ where: { slotId: slot.id, status: 'OPEN' } }),
@@ -126,6 +140,41 @@ export async function runSlot(): Promise<SlotRunResult> {
     slotId: row.slotId,
     status: row.status,
   }));
+
+  // Commit the book before settling it, so the orders cannot be disputed after
+  // the fact. Best effort: a failed commitment must not stop the slot trading.
+  let bookRoot: string | null = null;
+  if (isChainConfigured()) {
+    try {
+      bookRoot = merkleRoot([
+        ...listings.map((l) => ({
+          kind: 'listing' as const,
+          id: l.id,
+          party: l.sellerId,
+          nodeId: l.nodeId,
+          kwh: l.kwh,
+          pricePaise: l.askPricePaise,
+        })),
+        ...bids.map((b) => ({
+          kind: 'bid' as const,
+          id: b.id,
+          party: b.buyerId,
+          nodeId: b.nodeId,
+          kwh: b.kwh,
+          pricePaise: b.maxPricePaise,
+        })),
+      ]);
+
+      await relaySlotCommitment(
+        Math.floor(slot.startSim.getTime() / 60_000),
+        bookRoot,
+        listings.length + bids.length,
+      );
+    } catch (err) {
+      console.error('slot commitment failed; trading anyway', err);
+      bookRoot = null;
+    }
+  }
 
   // Rule 1 — fresh, never cached.
   const grid = await engineJson<GridTopology>('/grid/topology');
@@ -184,6 +233,7 @@ export async function runSlot(): Promise<SlotRunResult> {
         totalSupplyKwh: listingRows.reduce((sum, r) => sum + r.kwh, 0),
         totalDemandKwh: bidRows.reduce((sum, r) => sum + r.kwh, 0),
         congestionIndex: congestionIndexOf(grid),
+        merkleRoot: bookRoot,
       },
     });
 
@@ -282,6 +332,8 @@ export async function runSlot(): Promise<SlotRunResult> {
     donations: donations.length,
     donatedKwh: donations.reduce((sum, d) => sum + d.kwh, 0),
     badgesUnlocked,
+    brokerDecisions,
+    merkleRoot: bookRoot,
     readingsCaptured: readings.length,
     totalDeliveredKwh: result.totalDeliveredKwh,
     avgEfficiencyPct: result.avgEfficiencyPct,

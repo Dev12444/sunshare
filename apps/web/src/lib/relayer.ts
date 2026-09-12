@@ -99,6 +99,25 @@ export function explorerUrl(txHash: string, mode: SettlementMode): string | null
   return base ? `${base}/tx/${txHash}` : null;
 }
 
+/** Publishes the order-book commitment for a slot before it settles. */
+export async function relaySlotCommitment(
+  slot: number,
+  merkleRoot: string,
+  orderCount: number,
+): Promise<string> {
+  const { rpcUrl, privateKey, escrowAddress } = config();
+  if (!rpcUrl || !privateKey || !escrowAddress) throw new Error('chain is not configured');
+
+  return enqueue(async () => {
+    const wallet = new Wallet(privateKey, new JsonRpcProvider(rpcUrl));
+    const escrow = new Contract(escrowAddress, EnergyEscrowArtifact.abi, wallet);
+
+    const tx = await escrow.commitSlot(slot, merkleRoot, orderCount);
+    const receipt = await tx.wait();
+    return receipt.hash as string;
+  });
+}
+
 /* ------------------------------------------------------------ community pool */
 
 export function isPoolConfigured(): boolean {

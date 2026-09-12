@@ -43,7 +43,9 @@ Worked example of a full slot is in `services/engine/README.md`.
 | GET | `/api/market` | `MarketState` | H3.5 |
 | GET | `/api/events` | SSE `ServerEvent` — everything except ticks | H5 |
 | POST | `/api/settle` | `SettlementReceipt` | H10.5 |
-| POST | `/api/slot/run` | runs one slot: book → `/match` → trades → settle → SSE | H13 |
+| POST | `/api/slot/run` | runs one slot: broker → commit → `/match` → trades → settle → donations → badges | H13 |
+| GET/POST | `/api/broker` | `BrokerPolicy` + the Agent Activity feed | H13 |
+| GET | `/api/regulator/export` | CSV, `?dataset=trades\|donations` — DISCOM/regulator only | H17 |
 | GET | `/api/carbon` | `CarbonSummary` + `Badge[]` | H17 |
 | GET/POST | `/api/community` | `Beneficiary[]`, `CommunityDonation[]` | H17 |
 | POST | `/api/push` | store subscription / send notification | H17 |
