@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 type Tone = 'neutral' | 'up' | 'down' | 'solar' | 'mains' | 'warn';
@@ -27,7 +27,6 @@ export function Metric({
   tone = 'neutral',
   hint,
   size = 'md',
-  flash,
   className,
 }: {
   label: string;
@@ -37,10 +36,8 @@ export function Metric({
   hint?: ReactNode;
   size?: 'sm' | 'md' | 'lg';
   /** Briefly tint the value when it moves. Use for live market numbers only. */
-  flash?: number;
   className?: string;
 }) {
-  const direction = useFlash(flash);
   const sizes = {
     sm: 'text-md',
     md: 'text-xl',
@@ -55,8 +52,6 @@ export function Metric({
           'mt-1 flex items-baseline gap-1 font-mono tabular-nums',
           sizes[size],
           TONE_TEXT[tone],
-          direction === 'up' && 'animate-value-up',
-          direction === 'down' && 'animate-value-down',
         )}
       >
         <span className="truncate font-medium">{value}</span>
@@ -121,21 +116,3 @@ export function DataRow({
   );
 }
 
-function useFlash(value?: number): 'up' | 'down' | null {
-  const previous = useRef(value);
-  const [direction, setDirection] = useState<'up' | 'down' | null>(null);
-
-  useEffect(() => {
-    if (value === undefined || previous.current === undefined) {
-      previous.current = value;
-      return;
-    }
-    if (value === previous.current) return;
-    setDirection(value > previous.current ? 'up' : 'down');
-    previous.current = value;
-    const id = setTimeout(() => setDirection(null), 720);
-    return () => clearTimeout(id);
-  }, [value]);
-
-  return direction;
-}

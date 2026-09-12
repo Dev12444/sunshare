@@ -86,14 +86,10 @@ export default {
       spacing: { 4.5: '1.125rem', 13: '3.25rem', 15: '3.75rem', 18: '4.5rem' },
       transitionDuration: { 120: '120ms', 180: '180ms' },
       keyframes: {
-        'value-up': { '0%': { color: 'rgb(var(--up))' }, '100%': { color: 'inherit' } },
-        'value-down': { '0%': { color: 'rgb(var(--down))' }, '100%': { color: 'inherit' } },
         'sweep': { '0%': { transform: 'translateX(-100%)' }, '100%': { transform: 'translateX(300%)' } },
         'pulse-dot': { '0%,100%': { opacity: '1' }, '50%': { opacity: '0.35' } },
       },
       animation: {
-        'value-up': 'value-up 700ms ease-out',
-        'value-down': 'value-down 700ms ease-out',
         sweep: 'sweep 1.4s ease-in-out infinite',
         'pulse-dot': 'pulse-dot 2s ease-in-out infinite',
       },

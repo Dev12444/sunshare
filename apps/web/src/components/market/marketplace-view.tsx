@@ -104,7 +104,6 @@ export function MarketplaceView() {
               unit="/kWh"
               tone="solar"
               size="lg"
-              flash={clearing ?? undefined}
               hint={clearing ? 'Last cleared slot' : 'Indicative — no slot cleared yet'}
             />
           </MetricCell>

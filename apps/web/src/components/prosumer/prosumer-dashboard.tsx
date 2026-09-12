@@ -156,7 +156,6 @@ export function ProsumerDashboard() {
                   value={kwh(reading.generationKw)}
                   unit="kW"
                   tone="solar"
-                  flash={reading.generationKw}
                   hint={`${kwh(reading.dayGenerationKwh)} kWh today`}
                 />
               </MetricCell>
@@ -166,7 +165,6 @@ export function ProsumerDashboard() {
                   value={kwh(reading.consumptionKw)}
                   unit="kW"
                   tone="mains"
-                  flash={reading.consumptionKw}
                   hint="Household load"
                 />
               </MetricCell>
@@ -176,7 +174,6 @@ export function ProsumerDashboard() {
                   value={kwh(Math.abs(surplusKw))}
                   unit="kW"
                   tone={surplusKw >= 0 ? 'up' : 'down'}
-                  flash={surplusKw}
                   hint={surplusKw >= 0 ? `${kwh(availableKwh)} kWh this slot` : 'Importing'}
                 />
               </MetricCell>

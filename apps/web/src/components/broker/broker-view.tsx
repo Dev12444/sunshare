@@ -112,7 +112,6 @@ export function BrokerView() {
                 value={rupees(marketPrice)}
                 unit="/kWh"
                 tone="solar"
-                flash={marketPrice}
                 hint={clearing ? 'Last cleared slot' : 'Indicative'}
               />
             </MetricCell>

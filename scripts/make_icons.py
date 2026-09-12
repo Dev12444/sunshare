@@ -1,103 +1,140 @@
-"""Generate the PWA icon set — Dev, standing in for Diya's H0-H1 item.
+"""Generate the PWA icon set from the SunShare mark.
 
-Lighthouse will not call the app installable without at least a 192 and a 512,
-and the custom install prompt has nothing to show until they exist.
+Mirrors components/shell/brand.tsx: a sun rising over banded terraces, held in
+a disc. Kept in step with that file by hand — if the mark changes, rerun this.
 
-Mark: a sun low over a rooftop carrying a solar array, in the app's own
-sun/grid palette, drawn to stay legible at 48px on a home screen.
+Pure standard library on purpose. Pillow is not a dependency of this repo and
+adding one to produce four static PNGs that change once a year is a poor
+trade; the whole rasteriser below is shorter than the install would be.
 
     python3 scripts/make_icons.py
 """
 
 from __future__ import annotations
 
-import math
+import struct
+import zlib
 from pathlib import Path
-
-from PIL import Image, ImageDraw
 
 OUT = Path(__file__).resolve().parent.parent / "apps" / "web" / "public" / "icons"
 
-GROUND = (15, 23, 42)       # grid-900
-SUN = (251, 191, 36)        # sun-400
-SUN_CORE = (253, 230, 138)  # sun-200
-ROOF = (248, 250, 252)
-PANEL = (56, 132, 255)
+# Tokens copied from globals.css. Kept literal so the icon does not depend on
+# a CSS build to know what colour it is.
+PAPER = (247, 244, 238)
+SOLAR = (224, 138, 12)
+FOREST = (15, 61, 58)
+FOREST_2 = (20, 78, 72)
+FOREST_3 = (46, 109, 99)
+
+SS = 4  # supersampling factor; 4x is enough to hide the stair-stepping
 
 
-def draw(size: int, safe: float = 1.0) -> Image.Image:
-    """Render at 4x and downsample, for clean edges without antialiasing tricks.
+def terrace_top(x: float) -> float:
+    """Top edge of the first band, in 48-unit space.
+
+    A shallow parabola rather than the SVG's bezier: at icon sizes the two are
+    indistinguishable, and this inverts to a simple per-pixel comparison.
+    """
+    t = (x - 24.0) / 26.0
+    return 24.2 + 2.8 * t * t
+
+
+def furrow_x(index: int, y: float) -> float:
+    """Where furrow `index` sits at height `y`. They splay out as they descend."""
+    base = (13.0, 25.0, 36.0)[index]
+    spread = (-3.5, 0.0, 3.5)[index]
+    k = max(0.0, (y - 24.0) / 20.0)
+    return base + spread * k * k
+
+
+def sample(x: float, y: float) -> tuple[int, int, int, int]:
+    """Colour of the mark at a point in 48-unit space. Alpha 0 outside the disc."""
+    dx, dy = x - 24.0, y - 24.0
+    if dx * dx + dy * dy > 23.0 * 23.0:
+        return (0, 0, 0, 0)
+
+    top = terrace_top(x)
+
+    # Furrows sit on top of the bands, so they are tested first.
+    if y >= top - 1.0:
+        for i in range(3):
+            if abs(x - furrow_x(i, y)) < 0.7:
+                return (*PAPER, 255)
+
+    if y < top:
+        sdx, sdy = x - 24.0, y - 21.0
+        if sdx * sdx + sdy * sdy <= 13.5 * 13.5:
+            return (*SOLAR, 255)
+        return (*PAPER, 255)
+
+    if y < top + 6.0:
+        return (*FOREST_3, 255)
+    if y < top + 12.0:
+        return (*FOREST_2, 255)
+    return (*FOREST, 255)
+
+
+def render(size: int, safe: float = 1.0) -> bytes:
+    """Rasterise to raw RGBA rows.
 
     `safe` shrinks the artwork for maskable icons, whose outer 20% may be
-    cropped to any shape the launcher chooses.
+    cropped to whatever shape the launcher fancies.
     """
-    s = size * 4
-    img = Image.new("RGBA", (s, s), GROUND)
-    d = ImageDraw.Draw(img)
+    rows: list[bytes] = []
+    for py in range(size):
+        row = bytearray()
+        for px in range(size):
+            r = g = b = a = 0
+            for sy in range(SS):
+                for sx in range(SS):
+                    u = (px + (sx + 0.5) / SS) / size
+                    v = (py + (sy + 0.5) / SS) / size
+                    # Map into 48-unit space, scaled about the centre for `safe`.
+                    x = 24.0 + (u - 0.5) * 48.0 / safe
+                    y = 24.0 + (v - 0.5) * 48.0 / safe
+                    sr, sg, sb, sa = sample(x, y)
+                    r += sr * sa
+                    g += sg * sa
+                    b += sb * sa
+                    a += sa
+            n = SS * SS
+            if a == 0:
+                # Outside the disc: paper, so the icon is never transparent on
+                # a launcher that does not expect it.
+                row += bytes((*PAPER, 255))
+            else:
+                row += bytes((r // a, g // a, b // a, a // n))
+        rows.append(bytes(row))
+    return b"".join(b"\x00" + r for r in rows)
 
-    cx, cy = s / 2, s / 2
-    scale = safe
 
-    # Sun disc, sitting above the roof line.
-    r = s * 0.17 * scale
-    sun_y = cy - s * 0.13 * scale
-    d.ellipse([cx - r, sun_y - r, cx + r, sun_y + r], fill=SUN)
-    d.ellipse(
-        [cx - r * 0.62, sun_y - r * 0.62, cx + r * 0.62, sun_y + r * 0.62],
-        fill=SUN_CORE,
+def write_png(path: Path, size: int, safe: float = 1.0) -> None:
+    raw = render(size, safe)
+
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(data))
+            + tag
+            + data
+            + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+        )
+
+    png = (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(raw, 9))
+        + chunk(b"IEND", b"")
     )
-
-    # Rays, skipping only the lower arc that the roof hides.
-    # ang = i*45 - 90, so i=3,4,5 point down-right, down, down-left.
-    ray_len, ray_w = s * 0.075 * scale, s * 0.028 * scale
-    for i in range(8):
-        if 135 <= (i * 45) <= 225:
-            continue
-        ang = math.radians(i * 45 - 90)
-        x0 = cx + math.cos(ang) * (r * 1.28)
-        y0 = sun_y + math.sin(ang) * (r * 1.28)
-        x1 = cx + math.cos(ang) * (r * 1.28 + ray_len)
-        y1 = sun_y + math.sin(ang) * (r * 1.28 + ray_len)
-        d.line([x0, y0, x1, y1], fill=SUN, width=max(1, int(ray_w)))
-
-    # Roof: a wide, shallow gable.
-    roof_y = cy + s * 0.10 * scale
-    half = s * 0.30 * scale
-    apex = s * 0.13 * scale
-    d.polygon([(cx - half, roof_y), (cx, roof_y - apex), (cx + half, roof_y)], fill=ROOF)
-
-    # Solar array on the near slope, as three slats.
-    for i in range(3):
-        t0 = 0.12 + i * 0.26
-        t1 = t0 + 0.20
-        y_off = s * 0.018 * scale
-        p0 = (cx - half + (half * t0), roof_y - apex * t0 + y_off)
-        p1 = (cx - half + (half * t1), roof_y - apex * t1 + y_off)
-        d.line([p0, p1], fill=PANEL, width=max(1, int(s * 0.030 * scale)))
-
-    # Wall below the roof.
-    d.rectangle(
-        [cx - half * 0.72, roof_y, cx + half * 0.72, roof_y + s * 0.13 * scale],
-        fill=ROOF,
-    )
-
-    return img.resize((size, size), Image.LANCZOS)
+    path.write_bytes(png)
+    print(f"  {path.name}  {size}x{size}  {len(png) // 1024} KB")
 
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    specs = [
-        ("icon-192.png", 192, 1.0),
-        ("icon-512.png", 512, 1.0),
-        # Maskable art must survive an aggressive circular crop, so it is drawn
-        # inside the 80% safe zone.
-        ("icon-maskable-512.png", 512, 0.72),
-        ("apple-touch-icon.png", 180, 1.0),
-        ("favicon-32.png", 32, 1.0),
-    ]
-    for name, size, safe in specs:
-        draw(size, safe).convert("RGB").save(OUT / name, "PNG", optimize=True)
-        print(f"  {name:26s} {size}x{size}")
+    write_png(OUT / "icon-192.png", 192)
+    write_png(OUT / "icon-512.png", 512)
+    write_png(OUT / "icon-maskable-512.png", 512, safe=0.76)
+    write_png(OUT / "apple-touch-icon.png", 180)
 
 
 if __name__ == "__main__":

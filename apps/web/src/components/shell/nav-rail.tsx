@@ -31,11 +31,8 @@ export function NavRail() {
         href={items[0].href}
         className="flex h-12 shrink-0 items-center gap-2 border-b border-white/[.09] px-4"
       >
-        <BrandMark />
-        <span className="text-md">
-          <span className="font-semibold tracking-[-0.01em] text-forest-ink">Sun</span>
-          <span className="font-normal tracking-[-0.01em] text-forest-ink-2">Share</span>
-        </span>
+        <BrandMark size={22} />
+        <Wordmark tone="onDark" className="text-md" />
       </Link>
 
       <div className="min-h-0 flex-1 overflow-y-auto py-2">

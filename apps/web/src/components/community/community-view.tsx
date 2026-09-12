@@ -172,7 +172,6 @@ export function CommunityView() {
               value={kwh(todayKwh)}
               unit="kWh"
               tone="solar"
-              flash={todayKwh}
               hint={`${rupees(todayValue)} at clearing prices`}
             />
           </MetricCell>
