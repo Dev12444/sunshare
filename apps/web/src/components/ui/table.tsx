@@ -124,7 +124,10 @@ export function DataTable<T>({
                     : undefined
                 }
                 tabIndex={onRowClick ? 0 : undefined}
-                aria-selected={onRowClick ? selected : undefined}
+                // `aria-selected` is only meaningful on a row inside a grid or
+                // listbox; on a plain table row `aria-current` is the correct
+                // way to mark the one being inspected.
+                aria-current={onRowClick && selected ? true : undefined}
                 className={cn(
                   'border-b border-rule/[.09] last:border-b-0',
                   onRowClick && 'cursor-pointer hover:bg-sunken/70',

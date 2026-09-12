@@ -15,6 +15,7 @@ import { priceSeries } from '@/lib/mock/market-engine';
 import type { SettledSlot } from '@/lib/mock/state-defaults';
 import { useStore } from '@/lib/store';
 import { useNetworkLedger, useTariff } from '@/hooks/use-derived';
+import { useRoleSurface } from '@/hooks/use-role-surface';
 
 type Window = 'all' | 'morning' | 'midday' | 'evening';
 type Dataset = 'trades' | 'donations';
@@ -35,6 +36,7 @@ const WINDOWS: Record<Window, [number, number]> = {
  * slot table is the audit unit because the corridor is enforced per slot.
  */
 export function RegulatorView() {
+  useRoleSurface('REGULATOR');
   const history = useStore((s) => s.history);
   const topology = useStore((s) => s.topology);
   const mocked = useStore((s) => s.mocked);

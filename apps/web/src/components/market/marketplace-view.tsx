@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { DepthChart } from '@/components/charts/depth-chart';
 import { PriceChart } from '@/components/charts/price-chart';
 import { Button, Field, SegmentedControl, Select } from '@/components/ui/controls';
-import { Inspector } from '@/components/ui/inspector';
+import { DRAWER, Inspector } from '@/components/ui/inspector';
 import { DataRow, Metric, MetricCell, MetricRow } from '@/components/ui/metric';
 import { PageHead, Panel, PanelBody, PanelHead } from '@/components/ui/panel';
 import { Tabs } from '@/components/ui/tabs';
@@ -317,7 +317,7 @@ export function MarketplaceView() {
         onClose={() => setComposer(null)}
         eyebrow={composer === 'listing' ? 'Sell' : 'Buy'}
         title={composer === 'listing' ? 'Create listing' : 'Place bid'}
-        className="lg:fixed lg:inset-y-0 lg:right-0 lg:z-50 lg:w-[380px] lg:border-l"
+        className={DRAWER}
       >
         {composer === 'listing' ? (
           <ListingForm availableKwh={availableKwh} onDone={() => setComposer(null)} />
@@ -331,7 +331,7 @@ export function MarketplaceView() {
         onClose={() => setSelected(null)}
         eyebrow={selected?.side === 'SELL' ? 'Sell listing' : 'Buy bid'}
         title={selected ? displayName(selected.counterpartyId) : ''}
-        className="lg:fixed lg:inset-y-0 lg:right-0 lg:z-50 lg:w-[380px] lg:border-l"
+        className={DRAWER}
         footer={
           selected?.isMine && selected.status === 'OPEN' ? (
             <Button

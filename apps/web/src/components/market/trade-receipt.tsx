@@ -102,9 +102,11 @@ export function TradeReceipt({
               <DataRow label="Transaction">
                 <HashValue value={receipt.txHash} label="transaction hash" />
               </DataRow>
-              <DataRow label="Block">{receipt.blockNumber.toLocaleString('en-IN')}</DataRow>
+              {/* Chain figures are not currency — Indian digit grouping on a
+                  block height reads as a typo, so they stay ungrouped. */}
+              <DataRow label="Block">{receipt.blockNumber}</DataRow>
               <DataRow label="Chain">{receipt.chainId}</DataRow>
-              <DataRow label="Gas used">{Number(receipt.gasUsed).toLocaleString('en-IN')}</DataRow>
+              <DataRow label="Gas used">{receipt.gasUsed}</DataRow>
               {receipt.merkleRoot ? (
                 <DataRow label="Order-book root">
                   <HashValue value={receipt.merkleRoot} lead={6} tail={4} label="merkle root" />

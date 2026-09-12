@@ -87,7 +87,7 @@ export function DecisionPanel({
       </div>
 
       <dl className="grid grid-cols-2 border-t border-rule/[.13] hair-x sm:grid-cols-5">
-        <Cell label="Surplus" value={`${kwh(decision.inputs.surplusKwh)} kWh`} small />
+        <Cell label="Surplus left" value={`${kwh(decision.inputs.surplusKwh)} kWh`} small />
         <Cell
           label="To sunset"
           value={durationMinutes(decision.inputs.minutesToSunset)}

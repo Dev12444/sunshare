@@ -30,7 +30,7 @@ export function SimStatus({ className }: { className?: string }) {
 
   return (
     <div className={cn('flex items-center gap-x-5 gap-y-1', className)}>
-      <div className="flex items-baseline gap-2">
+      <div className="flex shrink-0 items-baseline gap-2 whitespace-nowrap">
         <span className="text-label font-semibold uppercase text-ink-3">Simulation</span>
         <time
           dateTime={tick.tsSim}
@@ -44,28 +44,27 @@ export function SimStatus({ className }: { className?: string }) {
 
       <StatusItem label="Slot" value={slotLabel(market.slotId)} hint={`→ ${simClock(market.slotEndSim)}`} />
 
-      <Divider className="hidden md:block" />
+      <Divider />
 
       <StatusItem
-        className="hidden md:flex"
         label={cleared ? 'Clearing' : 'Indicative'}
         value={rupees(price)}
         hint="/kWh"
         emphasis
       />
 
-      <Divider className="hidden xl:block" />
+      <Divider className="hidden sm:block" />
 
       <StatusItem
-        className="hidden xl:flex"
+        className="hidden sm:flex"
         label="Cloud"
         value={pct(tick.weather.cloudCoverPct, 0)}
       />
 
-      <Divider className="hidden xl:block" />
+      <Divider className="hidden lg:block" />
 
       <StatusItem
-        className="hidden xl:flex"
+        className="hidden lg:flex"
         label="Corridor"
         value={`${rupees(DEFAULT_TARIFF.feedInTariffPaise)}–${rupees(DEFAULT_TARIFF.retailTariffPaise)}`}
       />
@@ -87,7 +86,7 @@ function StatusItem({
   className?: string;
 }) {
   return (
-    <div className={cn('flex items-baseline gap-1.5', className)}>
+    <div className={cn('flex shrink-0 items-baseline gap-1.5 whitespace-nowrap', className)}>
       <span className="text-label font-semibold uppercase text-ink-3">{label}</span>
       <span
         className={cn(
@@ -103,7 +102,7 @@ function StatusItem({
 }
 
 function Divider({ className }: { className?: string }) {
-  return <span aria-hidden className={cn('h-3.5 w-px bg-rule/20', className)} />;
+  return <span aria-hidden className={cn('h-3.5 w-px shrink-0 bg-rule/20', className)} />;
 }
 
 /** Progress through the current 15-minute slot, as a hairline under the header. */

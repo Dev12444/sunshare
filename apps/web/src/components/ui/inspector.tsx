@@ -4,6 +4,18 @@ import { useEffect, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
+ * Right-hand drawer preset.
+ *
+ * Two things the sheet layout gets wrong on a wide screen and this corrects:
+ * `inset-x-0` sets `left: 0`, which beats a width on a fixed element, so the
+ * drawer would open against the navigation rail unless left is cleared; and at
+ * z-50 it would sit above the header, hiding the notification and role menus
+ * behind it. It belongs under the header, in the content area.
+ */
+export const DRAWER =
+  'lg:fixed lg:bottom-0 lg:top-[49px] lg:left-auto lg:right-0 lg:z-20 lg:w-[380px] lg:border-l lg:border-b-0';
+
+/**
  * Contextual inspector.
  *
  * On a wide screen it is a column beside the thing it describes, so the map or

@@ -150,7 +150,21 @@ export function ListingForm({
   return (
     <div className="space-y-3.5">
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Energy" hint={`${fmtKwh(availableKwh)} kWh available`} htmlFor="listing-kwh">
+        <Field
+          label="Energy"
+          htmlFor="listing-kwh"
+          hint={
+            // Available surplus falls as the slot runs down, so the number the
+            // form opened with can go stale while it is being filled in.
+            <button
+              type="button"
+              onClick={() => setEnergy((Math.floor(availableKwh * 100) / 100).toFixed(2))}
+              className="underline decoration-rule/40 underline-offset-2 hover:text-ink hover:decoration-ink"
+            >
+              {fmtKwh(availableKwh)} kWh available — use all
+            </button>
+          }
+        >
           <Input
             id="listing-kwh"
             inputMode="decimal"

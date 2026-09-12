@@ -66,7 +66,7 @@ export function SolarDayChart({
     <figure className="m-0">
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={series} margin={{ top: 8, right: 6, bottom: 0, left: -18 }}>
+          <ComposedChart data={series} margin={{ top: 8, right: 16, bottom: 0, left: -18 }}>
             <defs>
               <linearGradient id="gen-fill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={theme.solar} stopOpacity={0.28} />
@@ -237,7 +237,7 @@ export function SurplusStrip({
   return (
     <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart data={series} margin={{ top: 4, right: 6, bottom: 0, left: -18 }}>
+        <ComposedChart data={series} margin={{ top: 4, right: 16, bottom: 0, left: -18 }}>
           <CartesianGrid stroke={theme.ink3} strokeOpacity={0.12} vertical={false} />
           <XAxis dataKey="clock" {...axisProps(theme)} interval="preserveStartEnd" minTickGap={50} />
           <YAxis {...axisProps(theme)} width={44} tickFormatter={(v: number) => v.toFixed(0)} />

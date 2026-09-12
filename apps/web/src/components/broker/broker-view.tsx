@@ -4,17 +4,17 @@ import { useState } from 'react';
 import Link from 'next/link';
 import type { BrokerDecision } from '@sunshare/shared';
 import { Button } from '@/components/ui/controls';
-import { Inspector } from '@/components/ui/inspector';
+import { DRAWER, Inspector } from '@/components/ui/inspector';
 import { DataRow, Metric, MetricCell, MetricRow } from '@/components/ui/metric';
 import { PageHead, Panel, PanelBody, PanelHead } from '@/components/ui/panel';
 import { EmptyState } from '@/components/ui/states';
 import { Tag } from '@/components/ui/tag';
 import { PriceCorridor } from '@/components/market/corridor';
-import { SIM_DAY_OF_YEAR } from '@/lib/mock/market-engine';
+import { SIM_DAY_OF_YEAR, remainingSurplusKwh } from '@/lib/mock/market-engine';
 import { minutesToSunset } from '@/lib/solar';
 import { durationMinutes, kwh, pct, rupees, simClock } from '@/lib/format';
 import { logActivity, setState, useStore } from '@/lib/store';
-import { useMyReading, useTariff } from '@/hooks/use-derived';
+import { useTariff } from '@/hooks/use-derived';
 import { ActivityFeed } from './activity-feed';
 import { DecisionHistory, DecisionPanel } from './decision';
 import { GoalInput } from './goal-input';
@@ -37,7 +37,6 @@ export function BrokerView() {
   const tick = useStore((s) => s.tick);
   const myListings = useStore((s) => s.myListings);
 
-  const reading = useMyReading();
   const tariff = useTariff();
   const [selected, setSelected] = useState<BrokerDecision | null>(null);
   const [editing, setEditing] = useState(false);
@@ -46,7 +45,7 @@ export function BrokerView() {
   const clearing = market?.lastClearingPricePaise ?? null;
   const marketPrice = clearing ?? market?.indicativePricePaise ?? 0;
   const toSunset = minutesToSunset(simMinutes / 60, SIM_DAY_OF_YEAR);
-  const surplusKw = Math.max(0, reading?.surplusKw ?? 0);
+  const remainingKwh = policy ? remainingSurplusKwh(policy.userId, simMinutes) : 0;
   const brokerListing = myListings.find(
     (l) => l.brokerPolicyId === policy?.id && l.status === 'OPEN',
   );
@@ -132,9 +131,9 @@ export function BrokerView() {
             <MetricCell>
               <Metric
                 label="Sellable surplus"
-                value={kwh(Math.max(0, surplusKw - 0))}
-                unit="kW"
-                hint={`${policy.reserveKwh} kWh reserved`}
+                value={kwh(Math.max(0, remainingKwh - policy.reserveKwh))}
+                unit="kWh"
+                hint={`${kwh(remainingKwh)} kWh left today, ${policy.reserveKwh} reserved`}
               />
             </MetricCell>
             <MetricCell>
@@ -297,7 +296,7 @@ export function BrokerView() {
         onClose={() => setSelected(null)}
         eyebrow="Broker decision"
         title={selected ? simClock(selected.tsSim) : ''}
-        className="lg:fixed lg:inset-y-0 lg:right-0 lg:z-50 lg:w-[380px] lg:border-l"
+        className={DRAWER}
       >
         {selected ? (
           <div className="-mx-3.5 -my-3">

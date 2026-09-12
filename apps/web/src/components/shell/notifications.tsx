@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { simClock } from '@/lib/format';
 import { dismissNotice, markNoticesRead, useStore } from '@/lib/store';
+import { usePushNotifications } from '@/hooks/use-push';
 import { cn } from '@/lib/utils';
 import { IconBell } from './icons';
 
@@ -26,6 +27,7 @@ export function NotificationCenter() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const unread = notices.filter((n) => !n.read).length;
+  const push = usePushNotifications();
 
   useEffect(() => {
     if (!open) return;
@@ -111,6 +113,38 @@ export function NotificationCenter() {
               ))}
             </ul>
           )}
+
+          <footer className="sticky bottom-0 border-t border-rule/[.13] bg-surface px-3 py-2">
+            {push.state === 'granted' ? (
+              <p className="text-xs text-ink-3">
+                Push notifications are on for this device. Trades, broker decisions and settlement
+                results arrive even when SunShare is closed.
+              </p>
+            ) : push.state === 'denied' ? (
+              <p className="text-xs text-ink-3">
+                Push notifications are blocked for this site in your browser settings. In-app
+                notifications still work.
+              </p>
+            ) : push.state === 'unsupported' ? (
+              <p className="text-xs text-ink-3">
+                This browser does not support push notifications. In-app notifications still work.
+              </p>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <span className="min-w-0 text-xs text-ink-3">
+                  Get sale and settlement alerts when the app is closed.
+                </span>
+                <button
+                  type="button"
+                  onClick={push.enable}
+                  disabled={push.state === 'requesting'}
+                  className="shrink-0 rounded-sm border border-rule/25 bg-surface px-2 py-0.5 text-xs font-medium text-ink hover:bg-sunken disabled:opacity-60"
+                >
+                  {push.state === 'requesting' ? 'Asking…' : 'Enable'}
+                </button>
+              </div>
+            )}
+          </footer>
         </div>
       ) : null}
     </div>

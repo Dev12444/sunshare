@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { TradeRecord } from '@sunshare/shared';
 import { Button, Input, SegmentedControl, Select } from '@/components/ui/controls';
-import { Inspector } from '@/components/ui/inspector';
+import { DRAWER, Inspector } from '@/components/ui/inspector';
 import { Metric, MetricCell, MetricRow } from '@/components/ui/metric';
 import { PageHead, Panel } from '@/components/ui/panel';
 import { DataTable, Num, type Column } from '@/components/ui/table';
@@ -15,6 +15,7 @@ import { TRADE_STATUS_COPY, tradeStatusTone } from '@/lib/domain';
 import { kgCo2, kwh, rupees, simClock } from '@/lib/format';
 import { displayName } from '@/lib/seed';
 import { allDonations, allReceipts, allTrades, useStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { useTariff } from '@/hooks/use-derived';
 
 type StatusFilter = 'all' | 'settled' | 'pending' | 'failed';
@@ -326,7 +327,7 @@ export function LedgerView() {
         onClose={() => setSelected(null)}
         eyebrow="Settlement record"
         title={selected?.id ?? ''}
-        className="lg:fixed lg:inset-y-0 lg:right-0 lg:z-50 lg:w-[400px] lg:border-l"
+        className={cn(DRAWER, "lg:w-[400px]")}
       >
         {selected ? (
           <TradeReceipt

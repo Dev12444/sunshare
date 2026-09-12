@@ -796,6 +796,24 @@ export function daySeries(userId: string | null, stepMin = 10): DayPoint[] {
   return out;
 }
 
+/**
+ * Positive surplus still expected between `fromMinutes` and the end of
+ * generation, in kWh.
+ *
+ * This is the quantity a seller's reserve is actually measured against — a
+ * household holding back 2 kWh "for the evening" means 2 kWh of the day's
+ * remaining production, not 2 kWh out of the next fifteen minutes.
+ */
+export function remainingSurplusKwh(userId: string, fromMinutes: number, stepMin = 10): number {
+  const points = daySeries(userId, stepMin);
+  let total = 0;
+  for (const p of points) {
+    if (p.minute < fromMinutes) continue;
+    if (p.surplusKw > 0) total += p.surplusKw * (stepMin / 60);
+  }
+  return round(total, 3);
+}
+
 export interface PricePoint {
   slotIndex: number;
   slotId: string;

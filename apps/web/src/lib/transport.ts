@@ -33,6 +33,7 @@ import {
   historyUpTo,
   hexHash,
   ordersForSlot,
+  remainingSurplusKwh,
   round,
   simIso,
   slotIndexFor,
@@ -266,23 +267,34 @@ function onSlotClosed(slotIndex: number, nowMin: number) {
 }
 
 /**
- * Settle the orders this session placed by hand.
+ * Settle the orders this session placed by hand or through the broker.
  *
- * A manual listing clears if the uniform price reached its ask; a manual bid
- * clears if the price stayed at or below its limit. Anything else expires with
- * the slot and says why.
+ * A listing clears if the uniform price reached its ask; a bid clears if the
+ * price stayed at or below its limit. Anything else expires with the slot and
+ * says why.
+ *
+ * The slot the engine cleared may already contain a trade for this household —
+ * the seeded book offers every prosumer's surplus. When it does, the order is
+ * marked matched against that existing trade rather than producing a second
+ * one, otherwise the same kilowatt-hour would be counted twice in revenue and
+ * in the ledger.
  */
 function resolveMyOrders(slotId: string, clearingPricePaise: number, nowMin: number) {
   const s = getState();
   const t = DEFAULT_TARIFF;
   const extraTrades: TradeRecord[] = [];
+  const settled = s.history.find((h) => h.slotId === slotId);
+  const alreadySold = settled?.trades.some((tr) => tr.sellerId === s.user.id) ?? false;
+  const alreadyBought = settled?.trades.some((tr) => tr.buyerId === s.user.id) ?? false;
 
   const myListings = s.myListings.map((l) => {
     if (l.slotId !== slotId || l.status !== 'OPEN') return l;
     if (l.askPricePaise <= clearingPricePaise) {
-      extraTrades.push(
-        buildTrade(l.id, slotId, s.user.id, 'U-06', l.kwh, clearingPricePaise, nowMin),
-      );
+      if (!alreadySold) {
+        extraTrades.push(
+          buildTrade(l.id, slotId, s.user.id, 'U-06', l.kwh, clearingPricePaise, nowMin),
+        );
+      }
       return { ...l, status: 'MATCHED' as const };
     }
     logActivity({
@@ -296,9 +308,11 @@ function resolveMyOrders(slotId: string, clearingPricePaise: number, nowMin: num
   const myBids = s.myBids.map((b) => {
     if (b.slotId !== slotId || b.status !== 'OPEN') return b;
     if (b.maxPricePaise >= clearingPricePaise) {
-      extraTrades.push(
-        buildTrade(b.id, slotId, 'U-04', s.user.id, b.kwh, clearingPricePaise, nowMin),
-      );
+      if (!alreadyBought) {
+        extraTrades.push(
+          buildTrade(b.id, slotId, 'U-04', s.user.id, b.kwh, clearingPricePaise, nowMin),
+        );
+      }
       return { ...b, status: 'MATCHED' as const };
     }
     logActivity({
@@ -310,7 +324,7 @@ function resolveMyOrders(slotId: string, clearingPricePaise: number, nowMin: num
   });
 
   if (extraTrades.length > 0) {
-    const slot = s.history.find((h) => h.slotId === slotId);
+    const slot = settled;
     if (slot) {
       slot.trades = [...slot.trades, ...extraTrades];
       slot.receipts = [
@@ -411,15 +425,21 @@ function runBroker(minutes: number) {
   const mine = s.readings.find((r) => r.userId === s.policy!.userId);
   if (!mine || !s.market) return;
 
-  const remainingHours = (SLOT_MINUTES - (minutes % SLOT_MINUTES)) / 60;
   const listing =
     s.myListings.find((l) => l.status === 'OPEN' && l.brokerPolicyId === s.policy!.id) ?? null;
+
+  // The reserve is a claim on the rest of the day's production, so that is what
+  // the policy is evaluated against. What can actually be offered *now* is one
+  // slot's worth of it, which is all the meter will deliver inside the slot.
+  const remainingKwh = remainingSurplusKwh(s.policy.userId, minutes);
+  const perSlotKwh = Math.max(0, mine.surplusKw) * (SLOT_MINUTES / 60);
 
   const decision = evaluate(
     s.policy,
     {
       nowMin: minutes,
-      surplusKwh: Math.max(0, mine.surplusKw) * Math.max(remainingHours, 0.05),
+      surplusKwh: remainingKwh,
+      offerableKwh: perSlotKwh,
       dayGenerationKwh: mine.dayGenerationKwh,
       market: s.market,
       congestionIndex: s.market.congestionIndex,

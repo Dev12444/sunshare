@@ -153,7 +153,10 @@ function buildRationale(
 
 export interface BrokerContext {
   nowMin: number;
+  /** Positive surplus still expected today. What the reserve is measured against. */
   surplusKwh: number;
+  /** What the meter can actually deliver inside the current slot. */
+  offerableKwh: number;
   dayGenerationKwh: number;
   market: MarketState;
   congestionIndex: number;
@@ -228,13 +231,25 @@ export function evaluate(
     );
   }
 
-  const sellable = ctx.surplusKwh - policy.reserveKwh;
+  const headroom = ctx.surplusKwh - policy.reserveKwh;
+  if (headroom <= 0.05) {
+    return emit(
+      'HOLD',
+      0,
+      null,
+      `Expected surplus for the rest of the day is ${round2(ctx.surplusKwh)} kWh, inside the ${policy.reserveKwh} kWh reserve you set for the household.`,
+    );
+  }
+
+  // Only one slot's production can be delivered in one slot, however much
+  // headroom the day has.
+  const sellable = Math.min(headroom, ctx.offerableKwh);
   if (sellable <= 0.05) {
     return emit(
       'HOLD',
       0,
       null,
-      `Available surplus ${round2(ctx.surplusKwh)} kWh is inside the ${policy.reserveKwh} kWh reserve you set for the household.`,
+      `Generation is ${round2(ctx.offerableKwh)} kWh for this slot — too little to offer, though ${round2(headroom)} kWh remains available later today.`,
     );
   }
 

@@ -7,7 +7,7 @@ import { kwh, pct } from '@/lib/format';
 import { HOUSEHOLD_BY_NODE } from '@/lib/seed';
 import type { Reading } from '@/lib/mock/state-defaults';
 
-const W = 940;
+const W = 1000;
 const H = 430;
 const TIE_Y = 26;
 const BUS_Y = 62;
@@ -56,7 +56,9 @@ export function GridDiagram({
     const feeders = topology.nodes.filter((n) => n.kind === 'FEEDER');
     const placed = new Map<string, Placed>();
 
-    const margin = 84;
+    // Wide enough that a premise label tapped off the leftmost or rightmost
+    // feeder still has room to sit outside the run without clipping.
+    const margin = 150;
     const span = W - margin * 2;
     const step = feeders.length > 1 ? span / (feeders.length - 1) : 0;
 
@@ -120,7 +122,7 @@ export function GridDiagram({
     <div className="overflow-x-auto">
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        className="h-auto w-full min-w-[720px]"
+        className="h-auto w-full min-w-[760px]"
         role="img"
         aria-label="Single-line diagram of the Sector 21 distribution network."
       >

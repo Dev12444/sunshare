@@ -109,7 +109,7 @@ export function durationMinutes(mins: number): string {
   if (mins < 60) return `${Math.round(mins)} min`;
   const h = Math.floor(mins / 60);
   const m = Math.round(mins % 60);
-  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
 /* ---------------------------------------------------------------- ids */

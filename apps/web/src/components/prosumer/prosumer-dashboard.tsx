@@ -10,7 +10,7 @@ import { ListingForm } from '@/components/market/order-forms';
 import { TradeReceipt } from '@/components/market/trade-receipt';
 import { TradeTable } from '@/components/market/trade-table';
 import { Button, SegmentedControl } from '@/components/ui/controls';
-import { Inspector } from '@/components/ui/inspector';
+import { DRAWER, Inspector } from '@/components/ui/inspector';
 import { DataRow, Metric, MetricCell, MetricRow } from '@/components/ui/metric';
 import { Panel, PanelBody, PanelHead, PageHead } from '@/components/ui/panel';
 import { EmptyState, MetricSkeleton } from '@/components/ui/states';
@@ -21,6 +21,7 @@ import { kgCo2, kwh, rupees, simClock } from '@/lib/format';
 import { feederOf, fullName, substationOf } from '@/lib/seed';
 import { allReceipts, setState, useStore } from '@/lib/store';
 import { useDayLedger, useDaySeries, useMyReading, useTariff } from '@/hooks/use-derived';
+import { useRoleSurface } from '@/hooks/use-role-surface';
 import { InstallPrompt } from '@/components/shell/install-prompt';
 
 /**
@@ -32,6 +33,7 @@ import { InstallPrompt } from '@/components/shell/install-prompt';
  * top strip answers it without scrolling.
  */
 export function ProsumerDashboard() {
+  useRoleSurface('PROSUMER');
   const user = useStore((s) => s.user);
   const market = useStore((s) => s.market);
   const history = useStore((s) => s.history);
@@ -379,7 +381,7 @@ export function ProsumerDashboard() {
         onClose={() => setListingOpen(false)}
         eyebrow="Sell"
         title="Create listing"
-        className="lg:fixed lg:inset-y-0 lg:right-0 lg:z-50 lg:w-[380px] lg:border-l"
+        className={DRAWER}
       >
         <ListingForm availableKwh={availableKwh} onDone={() => setListingOpen(false)} />
       </Inspector>
@@ -389,7 +391,7 @@ export function ProsumerDashboard() {
         onClose={() => setSelected(null)}
         eyebrow="Trade receipt"
         title={selected?.id ?? ''}
-        className="lg:fixed lg:inset-y-0 lg:right-0 lg:z-50 lg:w-[380px] lg:border-l"
+        className={DRAWER}
       >
         {selected ? (
           <TradeReceipt

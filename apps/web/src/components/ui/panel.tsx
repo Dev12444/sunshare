@@ -32,7 +32,7 @@ export function PanelHead({
   return (
     <header className={cn('panel-head', className)}>
       <div className="flex min-w-0 items-baseline gap-2.5">
-        <h2 className="truncate text-label font-semibold uppercase text-ink-2">{title}</h2>
+        <h2 className="shrink-0 text-label font-semibold uppercase text-ink-2">{title}</h2>
         {meta ? <span className="truncate text-xs text-ink-3">{meta}</span> : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-1">{actions}</div> : null}

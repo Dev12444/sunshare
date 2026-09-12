@@ -22,6 +22,17 @@ import { BrandMark, Wordmark } from './brand';
 export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => startTransport(), []);
 
+  // The MSW layer answers any fetch a component makes while mocks are on. The
+  // tick loop does not go through it, so a slow worker start never delays the
+  // first frame.
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_USE_MOCKS !== 'true') return;
+    void import('@/mocks/browser').then(({ startMocks }) => startMocks()).catch(() => {
+      // No worker installed (npx msw init public). Mock reads still come from
+      // the local simulator, so the app is fully usable without it.
+    });
+  }, []);
+
   return (
     <div className="flex min-h-dvh bg-paper">
       <ServiceWorkerRegistrar />
@@ -35,7 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Wordmark className="text-sm" />
             </div>
 
-            <SimStatus className="hidden min-w-0 flex-1 lg:flex" />
+            <SimStatus className="hidden min-w-0 flex-1 overflow-x-auto no-scrollbar lg:flex" />
             <div className="flex-1 lg:hidden" />
 
             <div className="flex shrink-0 items-center gap-1">

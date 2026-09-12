@@ -16,6 +16,7 @@ import { priceSeries } from '@/lib/mock/market-engine';
 import { displayName } from '@/lib/seed';
 import { useStore } from '@/lib/store';
 import { useDaySeries, useNetworkLedger, useTariff } from '@/hooks/use-derived';
+import { useRoleSurface } from '@/hooks/use-role-surface';
 
 /**
  * DISCOM operations.
@@ -27,6 +28,7 @@ import { useDaySeries, useNetworkLedger, useTariff } from '@/hooks/use-derived';
  * already reads their own system.
  */
 export function DiscomView() {
+  useRoleSurface('DISCOM');
   const topology = useStore((s) => s.topology);
   const readings = useStore((s) => s.readings);
   const history = useStore((s) => s.history);

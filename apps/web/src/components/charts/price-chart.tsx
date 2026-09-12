@@ -59,7 +59,7 @@ export function PriceChart({
     <figure className="m-0">
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={series} margin={{ top: 8, right: 6, bottom: 0, left: -14 }}>
+          <ComposedChart data={series} margin={{ top: 8, right: 16, bottom: 0, left: -14 }}>
             <CartesianGrid stroke={theme.ink3} strokeOpacity={0.13} vertical={false} />
             <XAxis dataKey="clock" {...axisProps(theme)} interval="preserveStartEnd" minTickGap={44} />
             <YAxis

@@ -1,59 +1,34 @@
 'use client';
 
 /**
- * Live tick feed — the single source of moving numbers on every dashboard.
+ * Live tick feed.
  *
- * Reads straight off Dev's engine WebSocket (service workers do not intercept
- * WS, so PWA caching is irrelevant here). With NEXT_PUBLIC_USE_MOCKS=true it
- * reads Diya's fake emitter instead, so the frontend pair can build a fully
- * live-looking UI with zero backend running.
+ * Kept as a thin read over the application store rather than its own socket:
+ * `transport.ts` owns exactly one connection (engine WebSocket, or the local
+ * simulator when NEXT_PUBLIC_USE_MOCKS=true) and writes every frame into the
+ * store, so a second subscriber here would mean two clocks disagreeing on
+ * screen. Components that only need the current tick can use this; components
+ * that need the book, the ledger or the topology should select from the store
+ * directly.
  */
-import { useEffect, useRef, useState } from 'react';
 import type { Tick } from '@sunshare/shared';
-import { saveSnapshot } from '@/lib/offline-store';
-
-const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS === 'true';
-const WS_URL = process.env.NEXT_PUBLIC_ENGINE_WS ?? 'ws://localhost:8000/ws';
+import { useStore } from '@/lib/store';
 
 export type TickState = {
   tick: Tick | null;
   connected: boolean;
-  /** True once we have painted at least one frame from cache or the wire. */
+  /** True once at least one frame has been painted, live or from cache. */
   hydrated: boolean;
 };
 
 export function useTicks(): TickState {
-  const [tick, setTick] = useState<Tick | null>(null);
-  const [connected, setConnected] = useState(false);
-  const hydrated = useRef(false);
+  const tick = useStore((s) => s.tick);
+  const connection = useStore((s) => s.connection);
+  const fromCache = useStore((s) => s.fromCache);
 
-  useEffect(() => {
-    let stop = () => {};
-
-    if (USE_MOCKS) {
-      // Lazy import so the mock emitter is never bundled into production.
-      void import('@/mocks/fake-ws').then(({ startFakeTicks }) => {
-        stop = startFakeTicks((t) => {
-          setTick(t);
-          setConnected(true);
-          hydrated.current = true;
-        });
-      });
-    } else {
-      const ws = new WebSocket(WS_URL);
-      ws.onopen = () => setConnected(true);
-      ws.onclose = () => setConnected(false);
-      ws.onmessage = (msg) => {
-        const t = JSON.parse(msg.data) as Tick;
-        setTick(t);
-        hydrated.current = true;
-        void saveSnapshot(t.market, t.meters);
-      };
-      stop = () => ws.close();
-    }
-
-    return () => stop();
-  }, []);
-
-  return { tick, connected, hydrated: hydrated.current };
+  return {
+    tick,
+    connected: connection === 'live',
+    hydrated: tick !== null || fromCache,
+  };
 }

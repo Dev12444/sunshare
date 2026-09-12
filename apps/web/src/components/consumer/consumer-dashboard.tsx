@@ -11,7 +11,7 @@ import { BidForm } from '@/components/market/order-forms';
 import { TradeReceipt } from '@/components/market/trade-receipt';
 import { TradeTable } from '@/components/market/trade-table';
 import { Button } from '@/components/ui/controls';
-import { Inspector } from '@/components/ui/inspector';
+import { DRAWER, Inspector } from '@/components/ui/inspector';
 import { DataRow, Metric, MetricCell, MetricRow } from '@/components/ui/metric';
 import { PageHead, Panel, PanelBody, PanelHead } from '@/components/ui/panel';
 import { EmptyState, MetricSkeleton } from '@/components/ui/states';
@@ -21,6 +21,7 @@ import { kgCo2, km, kwh, pct, rupees, simClock } from '@/lib/format';
 import { displayName, feederOf, fullName, substationOf } from '@/lib/seed';
 import { allReceipts, setState, useStore } from '@/lib/store';
 import { useDayLedger, useDaySeries, useMyReading, useTariff } from '@/hooks/use-derived';
+import { useRoleSurface } from '@/hooks/use-role-surface';
 
 /**
  * Consumer overview.
@@ -31,6 +32,7 @@ import { useDayLedger, useDaySeries, useMyReading, useTariff } from '@/hooks/use
  * switch away from simply importing.
  */
 export function ConsumerDashboard() {
+  useRoleSurface('CONSUMER');
   const user = useStore((s) => s.user);
   const market = useStore((s) => s.market);
   const history = useStore((s) => s.history);
@@ -286,7 +288,7 @@ export function ConsumerDashboard() {
         onClose={() => setBidOpen(false)}
         eyebrow="Buy"
         title="Place bid"
-        className="lg:fixed lg:inset-y-0 lg:right-0 lg:z-50 lg:w-[380px] lg:border-l"
+        className={DRAWER}
       >
         <BidForm suggestedKwh={Math.max(0.2, shortfallKwh)} onDone={() => setBidOpen(false)} />
       </Inspector>
@@ -296,7 +298,7 @@ export function ConsumerDashboard() {
         onClose={() => setSelected(null)}
         eyebrow="Trade receipt"
         title={selected?.id ?? ''}
-        className="lg:fixed lg:inset-y-0 lg:right-0 lg:z-50 lg:w-[380px] lg:border-l"
+        className={DRAWER}
       >
         {selected ? (
           <TradeReceipt
@@ -313,7 +315,7 @@ export function ConsumerDashboard() {
         onClose={() => setSelectedOrder(null)}
         eyebrow="Sell listing"
         title={selectedOrder ? fullName(selectedOrder.counterpartyId) : ''}
-        className="lg:fixed lg:inset-y-0 lg:right-0 lg:z-50 lg:w-[380px] lg:border-l"
+        className={DRAWER}
         footer={
           <Button
             size="sm"
