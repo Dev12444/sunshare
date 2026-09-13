@@ -1,7 +1,11 @@
 # Demo script
 
 **Maansi drives.** Every beat is one API call and is deterministic under
-`SIM_SEED=2026` — rehearsal and stage produce identical numbers.
+`SIM_SEED=2026` **for a given calendar date** — rehearse on the day and stage
+matches rehearsal. The household noise is seeded per slot and the slot id
+carries the date, so figures shift by a few paise from one day to the next.
+The numbers below are rounded to hold on any day; read exact values off the
+screen.
 
 ```bash
 curl -X POST localhost:8000/sim/scenario -H 'content-type: application/json' \
@@ -15,12 +19,12 @@ the control strip in the UI can be built straight off it.
 
 | # | Beat | Time | What the screen shows |
 |---|---|---|---|
-| 1 | `dawn` | 06:00 | Supply 0. Price at ₹5.90, near the ceiling. Everything from the grid. |
-| 2 | `morning_ramp` | 08:00 | First trades, ~0.65 kWh. Most demand still backfilled. |
-| 3 | `midday_surplus` | 12:00 | 7.5 kWh supply vs 2.7 kWh demand. Price falls to ₹3.87. |
-| 4 | `local_match` | 12:30 | School served by both rooftops on its own feeder. 99.45% efficient, ~0.3 ms. |
-| 5 | `congestion` | 12:30 | **U-01 drops 1.05 kWh → 0.** U-04 routes in at 97.9%. Efficiency 99.45→99.04%, price ₹3.87→₹4.25. |
-| 6 | `evening_peak` | 19:30 | Supply 0, ~23 kW demand, price ₹5.99. The gap storage would fill. |
+| 1 | `dawn` | 06:00 | Supply 0. Price about ₹5.90, near the ceiling. Everything from the grid. |
+| 2 | `morning_ramp` | 08:00 | First trades, roughly half a kWh. Most demand still backfilled. |
+| 3 | `midday_surplus` | 12:00 | ~7.4 kWh supply vs ~2.7 kWh demand. Price falls to about ₹3.90. |
+| 4 | `local_match` | 12:30 | School served by both rooftops on its own feeder (U-01 ~1 kWh, U-02). ~99.45% efficient, ~0.3 ms. |
+| 5 | `congestion` | 12:30 | **U-01 drops ~1 kWh → 0.** U-04 routes in at 97.9%. Efficiency ~99.45→~99.0%, price ~₹3.90→~₹4.30. |
+| 6 | `evening_peak` | 19:30 | Supply 0, ~23 kW demand, price back up to about ₹5.97. The gap storage would fill. |
 
 Beats are order-independent — jumping out of `congestion` clears the congested
 line automatically, so you can re-run any beat in any order. There is a test
