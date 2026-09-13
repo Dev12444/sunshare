@@ -92,6 +92,8 @@ export interface AppState {
 
   donation: DonationConfig;
   stressedEdges: string[];
+  /** First slot the stressed edges apply to; earlier slots keep their own match. */
+  stressedSinceSlot: number | null;
 
   connection: ConnectionState;
   online: boolean;
@@ -133,6 +135,7 @@ const initial: AppState = {
 
   donation: DEFAULT_DONATION,
   stressedEdges: [],
+  stressedSinceSlot: null,
 
   connection: 'connecting',
   online: true,

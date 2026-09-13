@@ -50,7 +50,7 @@ import {
   generationKw,
   solarElevationDeg,
 } from '@/lib/solar';
-import { hopTier, pathBetween, pathLengthKm } from './grid-path';
+import { hopTier, pathBetween, pathEdgeIds, pathLengthKm } from './grid-path';
 
 /* ------------------------------------------------------------------ setup */
 
@@ -451,8 +451,17 @@ export function clearSlot(
  * The engine runs min-cost max-flow; this is the greedy fallback with the same
  * cost preference — shortest electrical path wins, because that is the path
  * that loses the least energy.
+ *
+ * `congestedEdges` are lines with no headroom left. A path through one of them
+ * cannot carry energy, so that seller is skipped and the buyer is served by
+ * the next-nearest seller whose path is clear — the same re-allocation the
+ * engine's flow solver makes when an arc has no capacity.
  */
-export function matchSlot(slotIndex: number, orders: SlotOrders): MatchResult {
+export function matchSlot(
+  slotIndex: number,
+  orders: SlotOrders,
+  congestedEdges: readonly string[] = [],
+): MatchResult {
   const started = performance.now();
   const { pricePaise } = clearSlot(orders.listings, orders.bids);
 
@@ -476,6 +485,7 @@ export function matchSlot(slotIndex: number, orders: SlotOrders): MatchResult {
         const path = pathBetween(s.listing.nodeId, buyer.bid.nodeId);
         return { s, path, distanceKm: pathLengthKm(path) };
       })
+      .filter((c) => !pathEdgeIds(c.path).some((id) => congestedEdges.includes(id)))
       .sort((a, b) => a.distanceKm - b.distanceKm || a.s.listing.askPricePaise - b.s.listing.askPricePaise);
 
     for (const cand of ranked) {
@@ -597,9 +607,10 @@ export function settleSlot(
   slotIndex: number,
   policy: BrokerPolicy | null,
   donation: DonationConfig,
+  congestedEdges: readonly string[] = [],
 ): SettledSlot {
   const orders = ordersForSlot(slotIndex, policy);
-  const match = matchSlot(slotIndex, orders);
+  const match = matchSlot(slotIndex, orders, congestedEdges);
   const t = DEFAULT_TARIFF;
   const slotStartMin = slotIndex * SLOT_MINUTES;
 
@@ -697,11 +708,12 @@ export function settledSlot(
   slotIndex: number,
   policy: BrokerPolicy | null,
   donation: DonationConfig,
+  congestedEdges: readonly string[] = [],
 ): SettledSlot {
-  const key = `${slotIndex}:${policy?.id ?? '-'}:${donation.donationPct}:${donation.dailyThresholdKwh}`;
+  const key = `${slotIndex}:${policy?.id ?? '-'}:${donation.donationPct}:${donation.dailyThresholdKwh}:${[...congestedEdges].sort().join(',')}`;
   const hit = slotCache.get(key);
   if (hit) return hit;
-  const value = settleSlot(slotIndex, policy, donation);
+  const value = settleSlot(slotIndex, policy, donation, congestedEdges);
   slotCache.set(key, value);
   if (slotCache.size > 400) slotCache.delete(slotCache.keys().next().value as string);
   return value;
@@ -711,16 +723,31 @@ export function clearSlotCache(): void {
   slotCache.clear();
 }
 
+/**
+ * A scripted congestion event: these lines are full from `sinceSlot` onward.
+ *
+ * Slots before it keep the allocation they actually cleared with, so turning
+ * congestion on re-routes the most recent match without rewriting the morning.
+ */
+export interface Congestion {
+  edges: readonly string[];
+  sinceSlot: number;
+}
+
 /** Every slot that has finished clearing at `minutes`, oldest first. */
 export function historyUpTo(
   minutes: number,
   policy: BrokerPolicy | null,
   donation: DonationConfig,
+  congestion: Congestion | null = null,
 ): SettledSlot[] {
   const first = slotIndexFor(DAY_START_MIN);
   const last = slotIndexFor(minutes) - 1;
   const out: SettledSlot[] = [];
-  for (let i = first; i <= last; i++) out.push(settledSlot(i, policy, donation));
+  for (let i = first; i <= last; i++) {
+    const edges = congestion && i >= congestion.sinceSlot ? congestion.edges : [];
+    out.push(settledSlot(i, policy, donation, edges));
+  }
   return out;
 }
 

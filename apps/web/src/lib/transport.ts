@@ -162,9 +162,13 @@ export function applySimMinute(minutes: number, prev: AppState = getState()) {
 
   const slotIndex = slotIndexFor(minutes);
   const slotChanged = slotIndex !== lastSlotIndex;
+  const congestion =
+    prev.stressedEdges.length && prev.stressedSinceSlot !== null
+      ? { edges: prev.stressedEdges, sinceSlot: prev.stressedSinceSlot }
+      : null;
   const history =
     slotChanged || prev.history.length === 0
-      ? historyUpTo(minutes, prev.policy, prev.donation)
+      ? historyUpTo(minutes, prev.policy, prev.donation, congestion)
       : prev.history;
 
   const book = ordersForSlot(slotIndex, prev.policy);
@@ -554,6 +558,7 @@ export function resetSimulation() {
     activity: [],
     notices: [],
     stressedEdges: [],
+    stressedSinceSlot: null,
     history: [],
     playing: true,
   });
@@ -562,6 +567,25 @@ export function resetSimulation() {
 
 export function refreshDerived() {
   applySimMinute(getState().simMinutes);
+}
+
+/**
+ * Fill one line to near capacity, or clear it.
+ *
+ * The congestion applies from the slot that just cleared, so the Grid page's
+ * "last match" re-routes the moment the button is pressed rather than fifteen
+ * simulated minutes later. History is dropped so it is re-settled around the
+ * full line.
+ */
+export function toggleCongestion(edgeId: string) {
+  const s = getState();
+  const on = !s.stressedEdges.includes(edgeId);
+  setState({
+    stressedEdges: on ? [edgeId] : [],
+    stressedSinceSlot: on ? slotIndexFor(s.simMinutes) - 1 : null,
+    history: [],
+  });
+  applySimMinute(s.simMinutes);
 }
 
 /* --------------------------------------------------------- live transport */

@@ -7,8 +7,10 @@ exact, reproducible state with one call.
 
     POST /sim/scenario {"beat": "midday_surplus"}
 
-Every beat is deterministic under SIM_SEED, so what happens in rehearsal is
-what happens on stage. The beats follow the story the judges already read in
+Every beat is deterministic under SIM_SEED for a given calendar date, so a
+rehearsal on the day matches the stage. The household noise is seeded per slot
+and the slot id carries the date, so figures move by a few paise from one day
+to the next — which is why watch_for quotes rounded numbers. The beats follow the story the judges already read in
 the Phase 1 submission, which is deliberate — we are delivering against the
 document they scored, not a different pitch.
 
@@ -46,7 +48,7 @@ BEATS: tuple[Beat, ...] = (
             "Six in the morning. No generation yet, and the neighbourhood is "
             "drawing everything it needs from the grid at the full retail tariff."
         ),
-        watch_for="Supply zero, price near the ₹6.50 ceiling. Everything comes off the grid.",
+        watch_for="Supply zero, price about ₹5.90, near the ₹6.50 ceiling. Everything comes off the grid.",
     ),
     Beat(
         key="morning_ramp",
@@ -56,10 +58,10 @@ BEATS: tuple[Beat, ...] = (
         speed=1.0,
         narration=(
             "The sun clears the horizon and the eight rooftop arrays start "
-            "producing. Households still consume more than they make, so nothing "
-            "is tradable yet."
+            "producing. Most households still consume more than they make, so "
+            "only a trickle is tradable and the grid covers the rest."
         ),
-        watch_for="First trades appear, ~0.65 kWh. Most demand still backfilled by the grid.",
+        watch_for="First trades appear, roughly half a kWh. Most demand still backfilled by the grid.",
     ),
     Beat(
         key="midday_surplus",
@@ -74,7 +76,7 @@ BEATS: tuple[Beat, ...] = (
             "utility for two rupees fifteen while the buyer next door pays "
             "six-fifty to import it."
         ),
-        watch_for="Eight listings, ~7.5 kWh supply against ~2.7 kWh demand. Price falls to about ₹3.87.",
+        watch_for="Eight listings, ~7.4 kWh supply against ~2.7 kWh demand. Price falls to about ₹3.90.",
     ),
     Beat(
         key="local_match",
@@ -83,12 +85,13 @@ BEATS: tuple[Beat, ...] = (
         congest=False,
         speed=1.0,
         narration=(
-            "The auction clears at four-fifty and the matching engine allocates. "
+            "The auction sets one price for everyone in the slot, well inside the "
+            "corridor, and the matching engine allocates. "
             "The school is served by the two rooftops on its own feeder — the "
             "shortest electrical path available, and about ninety-nine and a half "
             "percent efficient. Almost nothing is lost as heat."
         ),
-        watch_for="U-01 and U-02 serve the school on feeder F-1. Average efficiency 99.45%. Compute ~0.3 ms.",
+        watch_for="U-01 (~1 kWh) and U-02 serve the school on feeder F-1. Average efficiency ~99.45%. Compute ~0.3 ms.",
     ),
     Beat(
         key="congestion",
@@ -104,7 +107,7 @@ BEATS: tuple[Beat, ...] = (
             "lower efficiency and a higher price. That is the transmission cost "
             "made visible."
         ),
-        watch_for="U-01 drops from 1.05 kWh to zero; U-04 routes in at 97.9% over F-2→SS-1→F-1. Average efficiency 99.45%→99.04%, price ₹3.87→₹4.25.",
+        watch_for="U-01 drops from ~1 kWh to zero; U-04 routes in at 97.9% over F-2→SS-1→F-1. Average efficiency ~99.45%→~99.0%, price ~₹3.90→~₹4.30.",
     ),
     Beat(
         key="evening_peak",
@@ -118,7 +121,7 @@ BEATS: tuple[Beat, ...] = (
             "the price returns to the top of the corridor. This is exactly the gap "
             "that storage, or tomorrow's sun, has to fill."
         ),
-        watch_for="Zero supply, ~23 kW of demand, price back at ₹5.99. The gap storage would fill.",
+        watch_for="Zero supply, ~23 kW of demand, price back up to about ₹5.97. The gap storage would fill.",
     ),
 )
 

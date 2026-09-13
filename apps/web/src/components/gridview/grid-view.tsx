@@ -11,8 +11,8 @@ import { NodeInspector } from '@/components/mapview/node-inspector';
 import { congestionLevel, congestionTone, utilisation } from '@/lib/domain';
 import { km, kwh, pct } from '@/lib/format';
 import { NODE_BY_ID } from '@/lib/seed';
-import { setState, useStore } from '@/lib/store';
-import { refreshDerived } from '@/lib/transport';
+import { useStore } from '@/lib/store';
+import { toggleCongestion } from '@/lib/transport';
 import { GridDiagram } from './grid-diagram';
 
 type Scope = 'all' | 'loaded' | 'congested';
@@ -24,6 +24,9 @@ type Scope = 'all' | 'loaded' | 'congested';
  * an operator uses to answer "can this feeder take another 3 kW", so capacity
  * and headroom are columns, not tooltips.
  */
+/** The service drop feeding H-01 — the same line the engine's congestion beat fills. */
+const DEMO_CONGESTED_EDGE = 'e-F-1-H-01';
+
 export function GridView() {
   const topology = useStore((s) => s.topology);
   const readings = useStore((s) => s.readings);
@@ -150,13 +153,10 @@ export function GridView() {
             <Button
               size="sm"
               variant={stressed.length ? 'danger' : 'default'}
-              onClick={() => {
-                setState({ stressedEdges: stressed.length ? [] : ['e-SS-1-F-2'] });
-                refreshDerived();
-              }}
-              title="Force Feeder 2 to near capacity to exercise the congestion path"
+              onClick={() => toggleCongestion(DEMO_CONGESTED_EDGE)}
+              title="Fill the Patel Residence service line to near capacity; its trades re-route to the next clear path"
             >
-              {stressed.length ? 'Clear feeder stress' : 'Stress Feeder 2'}
+              {stressed.length ? 'Clear congestion' : 'Congest H-01 line'}
             </Button>
           ) : null
         }
